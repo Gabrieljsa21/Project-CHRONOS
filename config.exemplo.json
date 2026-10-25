@@ -1,0 +1,36 @@
+{
+  // Pasta onde está o SAM.API.dll (Steam Achievement Manager 7.x)
+  "pasta_sam": "E:\\Downloads\\Jogos & Steam\\SteamAchievementManager-7.0.41",
+
+  // true: abre a sessão na Steam e conta horas, mas só registra no log o que desbloquearia
+  "simulacao": true,
+
+  // Quantos jogos ficam "abertos" ao mesmo tempo; os demais esperam na ordem da lista
+  "jogos_simultaneos": 1,
+
+  // Multiplica a duração de cada jogo (0.5 = metade do tempo mediano de 100%)
+  "fator_duracao": 1.0,
+
+  // Usada quando o SteamHunters não tem o tempo mediano do jogo
+  "duracao_padrao_horas": 20,
+
+  // Acima de 1 adianta as conquistas comuns; 1 = puramente logarítmico
+  "curva": 1.5,
+
+  // Variação aleatória de cada horário (0.15 = mais ou menos 15%)
+  "variacao": 0.15,
+
+  "intervalo_minimo_minutos": 3,
+
+  // Horários em que os jogos ficam abertos. Lista vazia = sempre.
+  // dias vazio = todos; códigos: dom, seg, ter, qua, qui, sex, sab. fim antes do início atravessa a meia-noite.
+  "janelas": [
+    { "dias": [], "inicio": "09:00", "fim": "24:00" }
+  ],
+
+  // appid: número na URL da loja (store.steampowered.com/app/<appid>)
+  // duracao_horas (opcional) sobrescreve o tempo do SteamHunters
+  "jogos": [
+    { "appid": 620, "nome": "Portal 2" }
+  ]
+}
