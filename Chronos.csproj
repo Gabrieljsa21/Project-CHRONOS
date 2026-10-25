@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- WinExe: roda sem janela de console; os comandos de linha (status/plano) anexam ao console de quem chamou -->
+    <OutputType>WinExe</OutputType>
+    <!-- SAM.API.dll é .NET Framework 4.8 x86, então o projeto precisa seguir o mesmo alvo -->
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>Chronos</AssemblyName>
+    <RootNamespace>Chronos</RootNamespace>
+    <Version>0.1.0</Version>
+    <SamDir Condition="'$(SamDir)' == ''">E:\Downloads\Jogos &amp; Steam\SteamAchievementManager-7.0.41</SamDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Não copiada para a saída: em tempo de execução é carregada da pasta do SAM definida no config.json -->
+    <Reference Include="SAM.API">
+      <HintPath>$(SamDir)\SAM.API.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System.Net.Http" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <None Update="config.exemplo.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
