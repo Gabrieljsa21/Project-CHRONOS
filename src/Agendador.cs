@@ -16,6 +16,8 @@ namespace Chronos
 
         private static readonly Dictionary<uint, Process> Sessoes = new Dictionary<uint, Process>();
         private static readonly Dictionary<uint, DateTime> BloqueadoAte = new Dictionary<uint, DateTime>();
+        // Separado do bloqueio de sessão: jogo sem plano ainda pode ficar aberto com manter_aberto
+        private static readonly Dictionary<uint, DateTime> PlanoBloqueadoAte = new Dictionary<uint, DateTime>();
         private static readonly string[] CodigosDias = { "dom", "seg", "ter", "qua", "qui", "sex", "sab" };
 
         public static int Executar()
@@ -50,14 +52,17 @@ namespace Chronos
             RecolherSessoesEncerradas();
 
             var pendentes = new List<uint>();
+            var ociosos = new List<uint>();
             foreach (var jogo in cfg.Jogos)
             {
                 var estado = EstadoJogo.Carregar(jogo.Appid) ?? CriarPlano(jogo, cfg, rng);
                 if (estado != null && !estado.Concluido) pendentes.Add(jogo.Appid);
+                else if (cfg.ManterAberto) ociosos.Add(jogo.Appid);
             }
 
+            // Os jogos com conquistas a liberar têm prioridade nas vagas de jogos_simultaneos
             var desejados = DentroDaJanela(cfg, DateTime.Now)
-                ? pendentes.Where(Liberado).Take(cfg.JogosSimultaneos > 0 ? cfg.JogosSimultaneos : int.MaxValue).ToList()
+                ? pendentes.Concat(ociosos).Where(Liberado).Take(cfg.JogosSimultaneos > 0 ? cfg.JogosSimultaneos : int.MaxValue).ToList()
                 : new List<uint>();
 
             foreach (var appid in Sessoes.Keys.Except(desejados).ToList())
@@ -75,7 +80,7 @@ namespace Chronos
 
         private static EstadoJogo CriarPlano(JogoConfig jogo, Config cfg, Random rng)
         {
-            if (!Liberado(jogo.Appid)) return null;
+            if (PlanoBloqueadoAte.TryGetValue(jogo.Appid, out var ate) && DateTime.Now < ate) return null;
             try
             {
                 var estado = Planejador.Planejar(jogo, cfg, rng);
@@ -86,7 +91,7 @@ namespace Chronos
             catch (Exception e)
             {
                 Log.Escrever($"não foi possível planejar {jogo.Appid}: {e.Message}");
-                BloqueadoAte[jogo.Appid] = DateTime.Now + EsperaAposFalhaPlano;
+                PlanoBloqueadoAte[jogo.Appid] = DateTime.Now + EsperaAposFalhaPlano;
                 return null;
             }
         }

@@ -44,6 +44,8 @@ O log fica em `%APPDATA%\Chronos\chronos.log` e o estado de cada jogo em `%APPDA
 
 ## Discord
 
+Com `"manter_aberto": true`, um jogo da lista que não tem mais conquistas a liberar (concluído, ou sem conquistas na Steam) continua aberto na Steam só para contar horas, como o ArchiSteamFarm faz. Os jogos com conquistas a liberar têm prioridade nas vagas de `jogos_simultaneos`. Esses jogos não aparecem como "Jogando" no Discord. Se um jogo sem conquistas ganhar conquistas, a sessão reabre no modo normal.
+
 Enquanto um jogo está aberto, o Discord mostra "Jogando <jogo>" com o ícone oficial (Rich Presence, precisa do Discord aberto; se ele abrir depois, a sessão conecta no minuto seguinte). Jogos fora da lista de jogos do Discord ficam sem atividade. Desliga com `"discord": false` no config.
 
 ## Ordem e DLC

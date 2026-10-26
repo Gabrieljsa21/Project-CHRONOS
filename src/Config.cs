@@ -30,6 +30,9 @@ namespace Chronos
         // Mostra "Jogando <jogo>" no Discord enquanto a sessão está aberta
         public bool Discord { get; set; } = true;
         public int JogosSimultaneos { get; set; } = 1;
+        // Jogo da lista sem conquistas a liberar (concluído ou sem conquistas) continua aberto
+        // na Steam, só para contar horas, como o ArchiSteamFarm faz
+        public bool ManterAberto { get; set; }
         public double FatorDuracao { get; set; } = 1.0;
         public double DuracaoPadraoHoras { get; set; } = 50;
         public double Curva { get; set; } = 1.5;

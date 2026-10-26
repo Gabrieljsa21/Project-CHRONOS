@@ -88,13 +88,14 @@ namespace Chronos
                 var estado = EstadoJogo.Carregar(jogo.Appid);
                 if (estado == null)
                 {
-                    Console.WriteLine($"- {jogo.Nome ?? jogo.Appid.ToString()} ({jogo.Appid}): sem plano ainda");
+                    Console.WriteLine($"- {jogo.Nome ?? jogo.Appid.ToString()} ({jogo.Appid}): sem plano ainda{(cfg.ManterAberto ? "; fica aberto só para contar horas" : "")}");
                     continue;
                 }
                 var feitas = estado.Conquistas.Count(c => c.Situacao == Situacao.Desbloqueada || c.Situacao == Situacao.JaTinha);
                 var semDlc = estado.Conquistas.Count(c => c.Situacao == Situacao.SemDlc);
                 Console.WriteLine($"- {estado.Nome} ({estado.Appid}): {feitas}/{estado.Conquistas.Count} conquistas{(semDlc > 0 ? $" ({semDlc} sem DLC)" : "")}, {Horas(estado.MinutosJogados)} de {Horas(estado.DuracaoMinutos)} jogadas");
                 var proxima = estado.Pendentes.FirstOrDefault();
+                if (estado.Concluido && cfg.ManterAberto) Console.WriteLine("    concluído; fica aberto só para contar horas");
                 if (proxima != null)
                 {
                     Console.WriteLine($"    próxima: {proxima.Nome} ({proxima.Porcentagem:F1}%) em {Horas(Math.Max(0, proxima.Minuto - estado.MinutosJogados))} de jogo");

@@ -4,6 +4,16 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-25
+
+### Adicionado
+
+- Opção `manter_aberto` (desligada por padrão): jogo da lista sem conquistas a liberar (concluído, ou sem conquistas na Steam, como o Arknights: Endfield) continua aberto na Steam só para contar horas, como o ArchiSteamFarm (pedido do usuário: "eu quero q o jogo fique ativo para aumentar horas jogadas, mesmo quando nao tem mais achiv"). Os jogos com conquistas a liberar têm prioridade nas vagas de `jogos_simultaneos`. Esses jogos não anunciam "Jogando" no Discord. Se o jogo ganhar conquistas, a sessão reabre no modo normal. `--status` mostra quais ficam abertos só para contar horas.
+
+### Corrigido
+
+- Falha ao planejar um jogo deixava de bloquear a sessão dele: o bloqueio de 30 min agora vale só para a próxima tentativa de planejar.
+
 ## [0.2.1] - 2026-10-25
 
 ### Alterado
