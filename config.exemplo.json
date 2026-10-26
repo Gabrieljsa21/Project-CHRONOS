@@ -25,7 +25,7 @@
   "variacao": 0.15,
 
   // Quanto a ordem foge da raridade (0 = sempre da mais comum para a mais rara)
-  "desordem": 0.15,
+  "desordem": 0,
 
   // Espaço mínimo entre duas conquistas seguidas, sorteado entre os dois valores
   "intervalo_minimo_minutos": 15,
