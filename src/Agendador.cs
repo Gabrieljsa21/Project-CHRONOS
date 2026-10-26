@@ -107,7 +107,7 @@ namespace Chronos
         {
             var info = new ProcessStartInfo
             {
-                FileName = ProcessoSessao.Preparar(Process.GetCurrentProcess().MainModule.FileName, Nomes[appid]),
+                FileName = ProcessoSessao.Preparar(Process.GetCurrentProcess().MainModule.FileName, appid, Nomes[appid]),
                 Arguments = $"--sessao {appid} --pai {Process.GetCurrentProcess().Id}",
                 UseShellExecute = false,
                 CreateNoWindow = true,

@@ -55,7 +55,7 @@ namespace Chronos
             return resultado;
         }
 
-        private static string PastaSteam()
+        internal static string PastaSteam()
         {
             using (var chave = Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam"))
             {
