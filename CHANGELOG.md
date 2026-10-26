@@ -4,6 +4,12 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-26
+
+### Alterado
+
+- Cada sessão roda com o mesmo nome do executável que a Steam abre para o jogo (`My Sexy Neighbour 2.exe`, `EdgeOfEternity.exe`), no lugar de `CHRONOS - <jogo>.exe` (pedido do usuário: "mude o nome o processo do jogo q criamos p ser identico aoq a steam abre"). O nome vem do appinfo da Steam e vale também para jogo não instalado. Com o jogo instalado, a cópia leva também a descrição e a versão do executável real; sem ele, fica sem descrição, e o Gerenciador de Tarefas mostra o nome do arquivo. As cópias ficam em `sessoes/<appid>/`, com as DLLs, porque dois jogos podem ter o mesmo executável. As cópias antigas `CHRONOS - *.exe` são apagadas.
+
 ## [0.4.0] - 2026-10-26
 
 ### Adicionado
