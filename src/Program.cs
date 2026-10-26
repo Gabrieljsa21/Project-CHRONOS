@@ -27,7 +27,8 @@ namespace Chronos
             {
                 // WinExe não mostra erro na tela: sem esta linha o programa fecharia em silêncio
                 Log.Escrever($"config.json inválido ({Caminhos.Config}): {e.Message}");
-                return 1;
+                // Não 1: para o agendador, sessão que sai com 1 foi encerrada pelo Gerenciador de Tarefas
+                return 5;
             }
 
             // SAM.API.dll não acompanha o Chronos: vem da pasta do SAM definida no config.json
