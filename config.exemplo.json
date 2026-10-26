@@ -12,6 +12,11 @@
   // 0 = sem limite
   "jogos_simultaneos": 1,
 
+  // true: jogo da lista sem conquistas a liberar (concluído ou sem conquistas na Steam)
+  // continua aberto, só para contar horas, como o ArchiSteamFarm. Usa uma vaga de
+  // jogos_simultaneos, depois dos jogos com conquistas. Sem "Jogando" no Discord.
+  "manter_aberto": false,
+
   // Multiplica a duração de cada jogo (0.5 = metade do tempo mediano de 100%)
   "fator_duracao": 1.0,
 

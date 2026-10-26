@@ -22,7 +22,7 @@ namespace Chronos
         {
             Log.Prefixo = $"sessao {appid}";
             var estado = EstadoJogo.Carregar(appid);
-            if (estado == null)
+            if (estado == null && !cfg.ManterAberto)
             {
                 Log.Escrever("sem estado planejado; encerrando");
                 return SemEstado;
@@ -40,56 +40,83 @@ namespace Chronos
                     return FalhaSteam;
                 }
 
-                if (!ReceberStats(cliente, appid))
+                if (estado != null && !estado.Concluido)
                 {
-                    Log.Escrever("a Steam não devolveu as estatísticas do usuário");
-                    return FalhaStats;
+                    var codigo = LiberarConquistas(cliente, appid, pidPai, estado, cfg);
+                    if (codigo != Ok || !estado.Concluido) return codigo;
                 }
+                if (!cfg.ManterAberto) return Ok;
 
-                Sincronizar(cliente, estado, cfg.Simulacao);
-                if (!estado.Sincronizado)
+                // Só conta horas: a Steam mostra o jogo aberto enquanto o processo estiver conectado
+                Log.Escrever($"aberto só para contar horas ({(estado == null ? "sem plano de conquistas" : "conquistas concluídas")})");
+                while (Aguardar(cliente, pidPai, TimeSpan.FromSeconds(60)))
                 {
-                    Planejador.Replanejar(estado, cfg, new Random());
-                    estado.Sincronizado = true;
-                    Log.Escrever($"cronograma refeito com as {estado.Pendentes.Count()} pendentes: {estado.DuracaoMinutos / 60:F1} h no total");
-                }
-                estado.Salvar();
-                Log.Escrever($"sessão iniciada: {estado.Nome}, {estado.MinutosJogados:F0}/{estado.DuracaoMinutos:F0} min, {estado.Pendentes.Count()} pendentes{(cfg.Simulacao ? " (simulação)" : "")}");
-
-                var discord = cfg.Discord ? Discord.Criar(appid) : null;
-                if (cfg.Discord && discord == null) Log.Escrever("jogo fora da lista do Discord; sem atividade lá");
-                discord?.Manter();
-
-                var acelerar = double.TryParse(Environment.GetEnvironmentVariable("CHRONOS_ACELERAR"), out var fator) ? fator : 1.0;
-                var relogio = Stopwatch.StartNew();
-                while (!estado.Concluido)
-                {
-                    if (!Aguardar(cliente, pidPai, TimeSpan.FromSeconds(60)))
+                    // Plano criado depois (o jogo ganhou conquistas): o agendador reabre no modo normal
+                    var atual = EstadoJogo.Carregar(appid);
+                    if (atual != null && !atual.Concluido)
                     {
-                        Log.Escrever("agendador encerrado; fechando sessão");
-                        discord?.Dispose();
+                        Log.Escrever("plano de conquistas disponível; reabrindo a sessão");
                         return Ok;
                     }
-                    discord?.Manter();
-
-                    // Limite por ciclo evita contar como jogado o tempo em que o PC hibernou
-                    var delta = Math.Min(relogio.Elapsed.TotalMinutes, MaximoMinutosPorCiclo);
-                    relogio.Restart();
-                    estado.MinutosJogados += delta * acelerar;
-
-                    // No máximo uma por ciclo, para nunca sair um bloco de conquistas no mesmo instante
-                    var proxima = estado.Pendentes.FirstOrDefault();
-                    if (proxima != null && proxima.Minuto <= estado.MinutosJogados)
-                    {
-                        Desbloquear(cliente, proxima, cfg.Simulacao);
-                    }
-                    estado.Salvar();
                 }
-
-                discord?.Dispose();
-                Log.Escrever($"{estado.Nome} concluído");
+                Log.Escrever("agendador encerrado; fechando sessão");
                 return Ok;
             }
+        }
+
+        // Laço normal: desbloqueia as conquistas no minuto planejado até concluir o jogo ou o
+        // agendador sumir (aí estado.Concluido continua falso)
+        private static int LiberarConquistas(SAM.API.Client cliente, uint appid, int pidPai, EstadoJogo estado, Config cfg)
+        {
+            if (!ReceberStats(cliente, appid))
+            {
+                Log.Escrever("a Steam não devolveu as estatísticas do usuário");
+                return FalhaStats;
+            }
+
+            Sincronizar(cliente, estado, cfg.Simulacao);
+            if (!estado.Sincronizado)
+            {
+                Planejador.Replanejar(estado, cfg, new Random());
+                estado.Sincronizado = true;
+                Log.Escrever($"cronograma refeito com as {estado.Pendentes.Count()} pendentes: {estado.DuracaoMinutos / 60:F1} h no total");
+            }
+            estado.Salvar();
+            Log.Escrever($"sessão iniciada: {estado.Nome}, {estado.MinutosJogados:F0}/{estado.DuracaoMinutos:F0} min, {estado.Pendentes.Count()} pendentes{(cfg.Simulacao ? " (simulação)" : "")}");
+
+            var discord = cfg.Discord ? Discord.Criar(appid) : null;
+            if (cfg.Discord && discord == null) Log.Escrever("jogo fora da lista do Discord; sem atividade lá");
+            discord?.Manter();
+
+            var acelerar = double.TryParse(Environment.GetEnvironmentVariable("CHRONOS_ACELERAR"), out var fator) ? fator : 1.0;
+            var relogio = Stopwatch.StartNew();
+            while (!estado.Concluido)
+            {
+                if (!Aguardar(cliente, pidPai, TimeSpan.FromSeconds(60)))
+                {
+                    Log.Escrever("agendador encerrado; fechando sessão");
+                    discord?.Dispose();
+                    return Ok;
+                }
+                discord?.Manter();
+
+                // Limite por ciclo evita contar como jogado o tempo em que o PC hibernou
+                var delta = Math.Min(relogio.Elapsed.TotalMinutes, MaximoMinutosPorCiclo);
+                relogio.Restart();
+                estado.MinutosJogados += delta * acelerar;
+
+                // No máximo uma por ciclo, para nunca sair um bloco de conquistas no mesmo instante
+                var proxima = estado.Pendentes.FirstOrDefault();
+                if (proxima != null && proxima.Minuto <= estado.MinutosJogados)
+                {
+                    Desbloquear(cliente, proxima, cfg.Simulacao);
+                }
+                estado.Salvar();
+            }
+
+            discord?.Dispose();
+            Log.Escrever($"{estado.Nome} concluído");
+            return Ok;
         }
 
         private static bool ReceberStats(SAM.API.Client cliente, uint appid)
