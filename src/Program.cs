@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -48,11 +49,14 @@ namespace Chronos
                     AnexarConsole();
                     Comandos.Plano(cfg, uint.Parse(args[1]));
                     return 0;
+                case "--biblioteca":
+                    AnexarConsole();
+                    return Biblioteca.Executar();
                 case "":
                     return Agendador.Executar();
                 default:
                     AnexarConsole();
-                    Console.WriteLine("uso: Chronos.exe [--status | --plano <appid>]");
+                    Console.WriteLine("uso: Chronos.exe [--status | --plano <appid> | --biblioteca]");
                     return 1;
             }
         }
@@ -87,8 +91,9 @@ namespace Chronos
                     Console.WriteLine($"- {jogo.Nome ?? jogo.Appid.ToString()} ({jogo.Appid}): sem plano ainda");
                     continue;
                 }
-                var feitas = estado.Conquistas.Count(c => c.Situacao != Situacao.Pendente);
-                Console.WriteLine($"- {estado.Nome} ({estado.Appid}): {feitas}/{estado.Conquistas.Count} conquistas, {Horas(estado.MinutosJogados)} de {Horas(estado.DuracaoMinutos)} jogadas");
+                var feitas = estado.Conquistas.Count(c => c.Situacao == Situacao.Desbloqueada || c.Situacao == Situacao.JaTinha);
+                var semDlc = estado.Conquistas.Count(c => c.Situacao == Situacao.SemDlc);
+                Console.WriteLine($"- {estado.Nome} ({estado.Appid}): {feitas}/{estado.Conquistas.Count} conquistas{(semDlc > 0 ? $" ({semDlc} sem DLC)" : "")}, {Horas(estado.MinutosJogados)} de {Horas(estado.DuracaoMinutos)} jogadas");
                 var proxima = estado.Pendentes.FirstOrDefault();
                 if (proxima != null)
                 {
@@ -102,10 +107,30 @@ namespace Chronos
         {
             var jogo = cfg.Jogos.FirstOrDefault(j => j.Appid == appid) ?? new JogoConfig { Appid = appid };
             var estado = Planejador.Planejar(jogo, cfg, new Random());
-            Console.WriteLine($"{estado.Nome} ({appid}), fonte {estado.Fonte}: {estado.Conquistas.Count} conquistas em {Horas(estado.DuracaoMinutos)}");
+            var semDlc = ConquistasSemDlc(appid);
+            Console.WriteLine($"{estado.Nome} ({appid}), fonte {estado.Fonte}: {estado.Conquistas.Count} conquistas em {Horas(estado.DuracaoMinutos)}{(semDlc.Count > 0 ? $", {semDlc.Count} de DLC que a conta não tem" : "")}");
             foreach (var c in estado.Conquistas.OrderBy(c => c.Minuto))
             {
-                Console.WriteLine($"  {Horas(c.Minuto),8}  {c.Porcentagem,5:F1}%  {c.Nome}");
+                Console.WriteLine($"  {Horas(c.Minuto),8}  {c.Porcentagem,5:F1}%  {c.Nome}{(semDlc.Contains(c.ApiName) ? "  [sem DLC, fica de fora]" : "")}");
+            }
+        }
+
+        // Mesma regra da sessão; vazio se a Steam estiver fechada
+        private static HashSet<string> ConquistasSemDlc(uint appid)
+        {
+            var dlcs = EsquemaSteam.ConquistasDeDlc(appid);
+            if (dlcs.Count == 0) return new HashSet<string>();
+            using (var cliente = new SAM.API.Client())
+            {
+                try
+                {
+                    cliente.Initialize(0);
+                }
+                catch (SAM.API.ClientInitializeException)
+                {
+                    return new HashSet<string>();
+                }
+                return new HashSet<string>(dlcs.Where(p => !cliente.SteamApps008.IsSubscribedApp(p.Value)).Select(p => p.Key));
             }
         }
 

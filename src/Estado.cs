@@ -14,6 +14,8 @@ namespace Chronos
         public const string Desbloqueada = "desbloqueada";
         public const string JaTinha = "ja_tinha";
         public const string Ignorada = "ignorada";
+        // Conquista de um Achievement Set de DLC que a conta não tem: a Steam recusaria
+        public const string SemDlc = "sem_dlc";
     }
 
     internal sealed class Conquista
@@ -37,6 +39,9 @@ namespace Chronos
         public double DuracaoMinutos { get; set; }
         public double MinutosJogados { get; set; }
         public DateTime CriadoEm { get; set; }
+        // Falso até a primeira sessão conferir com a Steam o que o usuário já tinha e refazer
+        // o cronograma só com o que falta
+        public bool Sincronizado { get; set; }
         public List<Conquista> Conquistas { get; set; } = new List<Conquista>();
 
         public bool Concluido => Conquistas.All(c => c.Situacao != Situacao.Pendente);

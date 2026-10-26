@@ -6,7 +6,7 @@ Desbloqueia conquistas da Steam aos poucos, sem interação, num ritmo parecido 
 
 1. Você lista os jogos no `config.json`.
 2. Para cada jogo, o Chronos monta um cronograma com dados públicos do [SteamHunters](https://steamhunters.com):
-   - **duração total:** o tempo mediano para 100% do jogo (sem esse dado, usa `duracao_padrao_horas`);
+   - **duração total:** o tempo mediano para 100% do jogo (sem esse dado, usa `duracao_padrao_horas`, 50 h);
    - **ordem:** da conquista mais comum para a mais rara;
    - **momento de cada uma:** proporcional à raridade, em escala logarítmica, com variação aleatória;
    - conquistas marcadas como impossíveis de obter ficam de fora.
@@ -38,8 +38,19 @@ O exemplo vem com `"simulacao": true`: a sessão abre na Steam e conta horas, ma
 | `Chronos.exe` | Agendador em segundo plano, sem janela. Só uma instância roda por vez. |
 | `Chronos.exe --status` | Progresso de cada jogo e a próxima conquista. |
 | `Chronos.exe --plano <appid>` | Mostra um cronograma de exemplo, sem salvar nada. |
+| `Chronos.exe --biblioteca` | Lista em JSON todos os jogos que a conta pode abrir, inclusive os da família. Precisa da Steam aberta. |
 
 O log fica em `%APPDATA%\Chronos\chronos.log` e o estado de cada jogo em `%APPDATA%\Chronos\estado\<appid>.json`. Para refazer o plano de um jogo, apague o arquivo de estado dele.
+
+## Discord
+
+Enquanto um jogo está aberto, o Discord mostra "Jogando <jogo>" com o ícone oficial (Rich Presence, precisa do Discord aberto; se ele abrir depois, a sessão conecta no minuto seguinte). Jogos fora da lista de jogos do Discord ficam sem atividade. Desliga com `"discord": false` no config.
+
+## Ordem e DLC
+
+- Quanto mais rara a conquista, mais demora: a espera até cada uma é um espaço sorteado entre `intervalo_minimo_minutos` e `intervalo_maximo_minutos` (15 e 30) mais uma fatia da duração proporcional à dificuldade. A ordem tende da mais comum para a mais rara, sem padrão fixo (`desordem`, 0.15).
+- Na primeira sessão, o cronograma é refeito só com as conquistas que faltam, a partir do ponto em que você está.
+- Conquistas de DLC que a conta (ou a família) não tem ficam de fora quando o jogo usa os Achievement Sets da Steam, que marcam a DLC de cada conquista. Em jogos que ainda não usam sets, a Steam não informa isso.
 
 ## Riscos
 

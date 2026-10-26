@@ -57,7 +57,7 @@ namespace Chronos
             }
 
             var desejados = DentroDaJanela(cfg, DateTime.Now)
-                ? pendentes.Where(Liberado).Take(Math.Max(1, cfg.JogosSimultaneos)).ToList()
+                ? pendentes.Where(Liberado).Take(cfg.JogosSimultaneos > 0 ? cfg.JogosSimultaneos : int.MaxValue).ToList()
                 : new List<uint>();
 
             foreach (var appid in Sessoes.Keys.Except(desejados).ToList())
