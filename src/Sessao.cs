@@ -46,9 +46,19 @@ namespace Chronos
                     return FalhaStats;
                 }
 
-                Sincronizar(cliente, estado);
+                Sincronizar(cliente, estado, cfg.Simulacao);
+                if (!estado.Sincronizado)
+                {
+                    Planejador.Replanejar(estado, cfg, new Random());
+                    estado.Sincronizado = true;
+                    Log.Escrever($"cronograma refeito com as {estado.Pendentes.Count()} pendentes: {estado.DuracaoMinutos / 60:F1} h no total");
+                }
                 estado.Salvar();
                 Log.Escrever($"sessão iniciada: {estado.Nome}, {estado.MinutosJogados:F0}/{estado.DuracaoMinutos:F0} min, {estado.Pendentes.Count()} pendentes{(cfg.Simulacao ? " (simulação)" : "")}");
+
+                var discord = cfg.Discord ? Discord.Criar(appid) : null;
+                if (cfg.Discord && discord == null) Log.Escrever("jogo fora da lista do Discord; sem atividade lá");
+                discord?.Manter();
 
                 var acelerar = double.TryParse(Environment.GetEnvironmentVariable("CHRONOS_ACELERAR"), out var fator) ? fator : 1.0;
                 var relogio = Stopwatch.StartNew();
@@ -57,8 +67,10 @@ namespace Chronos
                     if (!Aguardar(cliente, pidPai, TimeSpan.FromSeconds(60)))
                     {
                         Log.Escrever("agendador encerrado; fechando sessão");
+                        discord?.Dispose();
                         return Ok;
                     }
+                    discord?.Manter();
 
                     // Limite por ciclo evita contar como jogado o tempo em que o PC hibernou
                     var delta = Math.Min(relogio.Elapsed.TotalMinutes, MaximoMinutosPorCiclo);
@@ -74,6 +86,7 @@ namespace Chronos
                     estado.Salvar();
                 }
 
+                discord?.Dispose();
                 Log.Escrever($"{estado.Nome} concluído");
                 return Ok;
             }
@@ -102,20 +115,34 @@ namespace Chronos
             return recebido && resultado == 1;
         }
 
-        // Marca o que o usuário já tinha e descarta nomes que não existem no schema do jogo
-        private static void Sincronizar(SAM.API.Client cliente, EstadoJogo estado)
+        // Marca o que o usuário já tinha, descarta nomes que não existem no schema do jogo e
+        // separa as conquistas de DLC que a conta não tem (voltam a pendentes se a DLC chegar).
+        // Fora da simulação, as desbloqueadas só em simulação voltam a pendentes.
+        private static void Sincronizar(SAM.API.Client cliente, EstadoJogo estado, bool simulacao)
         {
             var stats = cliente.SteamUserStats;
-            foreach (var c in estado.Conquistas.Where(c => c.Situacao == Situacao.Pendente))
+            var dlcs = EsquemaSteam.ConquistasDeDlc(estado.Appid);
+            foreach (var c in estado.Conquistas.Where(c => c.Situacao == Situacao.Pendente || c.Situacao == Situacao.SemDlc
+                                                           || (!simulacao && c.Simulada && c.Situacao == Situacao.Desbloqueada)))
             {
+                c.Simulada = false;
+                c.DesbloqueadaEm = null;
                 if (!stats.GetAchievement(c.ApiName, out var tem))
                 {
                     c.Situacao = Situacao.Ignorada;
                     Log.Escrever($"'{c.ApiName}' não existe no schema; ignorada");
                     continue;
                 }
-                if (tem) c.Situacao = Situacao.JaTinha;
+                if (tem)
+                {
+                    c.Situacao = Situacao.JaTinha;
+                    continue;
+                }
+                var temDlc = !dlcs.TryGetValue(c.ApiName, out var dlc) || cliente.SteamApps008.IsSubscribedApp(dlc);
+                c.Situacao = temDlc ? Situacao.Pendente : Situacao.SemDlc;
             }
+            var semDlc = estado.Conquistas.Count(c => c.Situacao == Situacao.SemDlc);
+            if (semDlc > 0) Log.Escrever($"{semDlc} conquista(s) de DLC que a conta não tem ficam de fora");
 
             foreach (var c in estado.Conquistas.Where(c => c.Nome == c.ApiName))
             {

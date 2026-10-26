@@ -5,22 +5,31 @@
   // true: abre a sessão na Steam e conta horas, mas só registra no log o que desbloquearia
   "simulacao": true,
 
+  // Mostra "Jogando <jogo>" no Discord enquanto o jogo está aberto (Rich Presence; precisa do Discord aberto)
+  "discord": true,
+
   // Quantos jogos ficam "abertos" ao mesmo tempo; os demais esperam na ordem da lista
+  // 0 = sem limite
   "jogos_simultaneos": 1,
 
   // Multiplica a duração de cada jogo (0.5 = metade do tempo mediano de 100%)
   "fator_duracao": 1.0,
 
   // Usada quando o SteamHunters não tem o tempo mediano do jogo
-  "duracao_padrao_horas": 20,
+  "duracao_padrao_horas": 50,
 
-  // Acima de 1 adianta as conquistas comuns; 1 = puramente logarítmico
+  // Quanto a dificuldade pesa na espera: acima de 1, as raras demoram ainda mais que as comuns
   "curva": 1.5,
 
-  // Variação aleatória de cada horário (0.15 = mais ou menos 15%)
+  // Variação aleatória de cada espera (0.15 = mais ou menos 15%)
   "variacao": 0.15,
 
-  "intervalo_minimo_minutos": 3,
+  // Quanto a ordem foge da raridade (0 = sempre da mais comum para a mais rara)
+  "desordem": 0.15,
+
+  // Espaço mínimo entre duas conquistas seguidas, sorteado entre os dois valores
+  "intervalo_minimo_minutos": 15,
+  "intervalo_maximo_minutos": 30,
 
   // Horários em que os jogos ficam abertos. Lista vazia = sempre.
   // dias vazio = todos; códigos: dom, seg, ter, qua, qui, sex, sab. fim antes do início atravessa a meia-noite.

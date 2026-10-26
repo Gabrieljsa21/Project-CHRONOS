@@ -15,7 +15,7 @@ namespace Chronos
         private static HttpClient CriarHttp()
         {
             var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("Project-CHRONOS/0.1");
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("Project-CHRONOS/0.2");
             return http;
         }
 
@@ -108,44 +108,62 @@ namespace Chronos
             return JsonDocument.Parse(resposta.Content.ReadAsStringAsync().GetAwaiter().GetResult());
         }
 
-        // Comuns primeiro, raras no fim. A posição de cada conquista na duração total segue
-        // ln(pTopo / p) normalizado e elevado à curva: valores acima de 1 aproximam as comuns
-        // do início, já que a mediana de 100% é dominada pelo tempo gasto nas raras.
+        // Quanto mais rara, mais demora: a espera até cada conquista (desde a anterior) é um
+        // espaço sorteado entre intervalo_minimo e intervalo_maximo mais uma parte da duração
+        // proporcional ao peso de dificuldade dela, ln(100 / p)^curva. Os espaços saem da
+        // duração antes da divisão, então o total continua sendo a duração do jogo. Uma de 60%
+        // sai pouco depois do espaço mínimo; uma de 2% leva horas. Para não haver padrão: a ordem leva um desvio
+        // gaussiano (desordem) em torno da raridade, então uma rara pode vir antes de uma comum
+        // (e ainda demora o tempo dela); e a parte de dificuldade tem ruído de ±variacao.
         internal static void DistribuirTempos(List<Conquista> conquistas, double duracaoMinutos, Config cfg, Random rng)
         {
-            var ordenadas = conquistas.OrderByDescending(c => c.Porcentagem).ToList();
-            var n = ordenadas.Count;
-            var pTopo = Math.Max(0.01, ordenadas[0].Porcentagem);
-            var pBase = Math.Max(0.01, ordenadas[n - 1].Porcentagem);
-            var amplitude = Math.Log(pTopo / pBase);
+            var n = conquistas.Count;
+            var dificuldade = conquistas.Select(c => Dificuldade(c.Porcentagem)).ToList();
+            var amplitude = Math.Max(1e-6, dificuldade.Max() - dificuldade.Min());
+            var ordem = Enumerable.Range(0, n)
+                .OrderBy(i => dificuldade[i] + Gaussiano(rng) * cfg.Desordem * amplitude)
+                .ToList();
 
-            var tempos = new List<double>(n);
-            for (var i = 0; i < n; i++)
+            var pesos = dificuldade.Select(d => Peso(d, cfg)).ToList();
+            var minimo = Math.Min(cfg.IntervaloMinimoMinutos, cfg.IntervaloMaximoMinutos);
+            var maximo = Math.Max(cfg.IntervaloMinimoMinutos, cfg.IntervaloMaximoMinutos);
+            var espacos = Enumerable.Range(0, n).Select(_ => minimo + rng.NextDouble() * (maximo - minimo)).ToList();
+            // Duração curta demais para os espaços: sobra só o espaço sorteado
+            var escala = Math.Max(0.0, duracaoMinutos - espacos.Sum()) / pesos.Sum();
+
+            var minuto = 0.0;
+            foreach (var i in ordem)
             {
-                double fracao;
-                if (amplitude < 1e-6)
-                {
-                    // Todas com a mesma raridade: distribui por posição
-                    fracao = n == 1 ? 1.0 : (double)i / (n - 1);
-                }
-                else
-                {
-                    fracao = Math.Log(pTopo / Math.Max(0.01, ordenadas[i].Porcentagem)) / amplitude;
-                }
-                fracao = 0.02 + 0.98 * Math.Pow(fracao, cfg.Curva);
                 var ruido = 1.0 + (rng.NextDouble() * 2.0 - 1.0) * cfg.Variacao;
-                tempos.Add(duracaoMinutos * fracao * ruido);
-            }
-
-            // O ruído pode inverter vizinhas; reordenar mantém comuns antes de raras
-            tempos.Sort();
-            var anterior = 0.0;
-            for (var i = 0; i < n; i++)
-            {
-                var minuto = Math.Max(tempos[i], anterior + cfg.IntervaloMinimoMinutos);
-                ordenadas[i].Minuto = Math.Round(minuto, 1);
-                anterior = minuto;
+                minuto += espacos[i] + pesos[i] * escala * ruido;
+                conquistas[i].Minuto = Math.Round(minuto, 1);
             }
         }
+
+        // Refaz o cronograma só com as pendentes, a partir do tempo já jogado. A duração restante
+        // é a fatia da duração total equivalente ao peso do que falta: quem já tinha as comuns
+        // não espera por elas de novo.
+        internal static void Replanejar(EstadoJogo estado, Config cfg, Random rng)
+        {
+            var pendentes = estado.Conquistas.Where(c => c.Situacao == Situacao.Pendente).ToList();
+            if (pendentes.Count == 0) return;
+            var pesoTotal = estado.Conquistas.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
+            var pesoPendente = pendentes.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
+            var restante = estado.DuracaoMinutos * pesoPendente / pesoTotal;
+
+            DistribuirTempos(pendentes, restante, cfg, rng);
+            foreach (var c in pendentes) c.Minuto = Math.Round(c.Minuto + estado.MinutosJogados, 1);
+            estado.DuracaoMinutos = estado.MinutosJogados + restante;
+        }
+
+        private static double Dificuldade(double porcentagem) =>
+            Math.Log(100.0 / Math.Min(100.0, Math.Max(0.01, porcentagem)));
+
+        // Peso mínimo para que conquistas de quase 100% não fiquem com espera zero
+        private static double Peso(double dificuldade, Config cfg) => Math.Pow(Math.Max(0.05, dificuldade), cfg.Curva);
+
+        // Normal padrão (Box-Muller)
+        private static double Gaussiano(Random rng) =>
+            Math.Sqrt(-2.0 * Math.Log(1.0 - rng.NextDouble())) * Math.Cos(2.0 * Math.PI * rng.NextDouble());
     }
 }

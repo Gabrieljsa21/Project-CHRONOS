@@ -27,12 +27,18 @@ namespace Chronos
     {
         public string PastaSam { get; set; } = @"E:\Downloads\Jogos & Steam\SteamAchievementManager-7.0.41";
         public bool Simulacao { get; set; }
+        // Mostra "Jogando <jogo>" no Discord enquanto a sessão está aberta
+        public bool Discord { get; set; } = true;
         public int JogosSimultaneos { get; set; } = 1;
         public double FatorDuracao { get; set; } = 1.0;
-        public double DuracaoPadraoHoras { get; set; } = 20;
+        public double DuracaoPadraoHoras { get; set; } = 50;
         public double Curva { get; set; } = 1.5;
         public double Variacao { get; set; } = 0.15;
-        public double IntervaloMinimoMinutos { get; set; } = 3;
+        // Quanto a ordem foge da raridade: 0 = sempre da mais comum para a mais rara
+        public double Desordem { get; set; } = 0.15;
+        // Espaço entre duas conquistas seguidas: sorteado entre o mínimo e o máximo
+        public double IntervaloMinimoMinutos { get; set; } = 15;
+        public double IntervaloMaximoMinutos { get; set; } = 30;
         public List<Janela> Janelas { get; set; } = new List<Janela>();
         public List<JogoConfig> Jogos { get; set; } = new List<JogoConfig>();
 
