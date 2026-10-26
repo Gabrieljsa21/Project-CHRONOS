@@ -48,7 +48,7 @@ Enquanto um jogo está aberto, o Discord mostra "Jogando <jogo>" com o ícone of
 
 ## Ordem e DLC
 
-- Quanto mais rara a conquista, mais demora: a espera até cada uma é um espaço sorteado entre `intervalo_minimo_minutos` e `intervalo_maximo_minutos` (15 e 30) mais uma fatia da duração proporcional à dificuldade. A ordem tende da mais comum para a mais rara, sem padrão fixo (`desordem`, 0.15).
+- Quanto mais rara a conquista, mais demora: a espera até cada uma é um espaço sorteado entre `intervalo_minimo_minutos` e `intervalo_maximo_minutos` (15 e 30) mais uma fatia da duração proporcional à dificuldade. O intervalo entre duas conquistas varia, sem ritmo fixo; a ordem vai da mais comum para a mais rara (`desordem` acima de 0 embaralha um pouco, 0 por padrão).
 - Na primeira sessão, o cronograma é refeito só com as conquistas que faltam, a partir do ponto em que você está.
 - Conquistas de DLC que a conta (ou a família) não tem ficam de fora quando o jogo usa os Achievement Sets da Steam, que marcam a DLC de cada conquista. Em jogos que ainda não usam sets, a Steam não informa isso.
 

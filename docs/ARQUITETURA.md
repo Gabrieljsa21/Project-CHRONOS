@@ -25,7 +25,7 @@ O Chronos conta o tempo jogado por conta própria (`minutos_jogados` no estado),
 
 ## Cronograma
 
-`Planejador.DistribuirTempos`: dificuldade = `ln(100/p)`; peso = `max(0.05, dificuldade)^curva`. A ordem é a dificuldade mais um desvio gaussiano de `desordem` vezes a amplitude das dificuldades (uma rara pode vir antes de uma comum e continua demorando o tempo dela). A espera até cada conquista é um espaço sorteado entre `intervalo_minimo_minutos` e `intervalo_maximo_minutos` mais `peso * escala * (1 ± variacao)`, com `escala = (duração - soma dos espaços) / soma dos pesos`, então o total continua sendo a duração. Objetivo: quanto mais rara, mais demora, sem padrão reconhecível na ordem nem no ritmo.
+`Planejador.DistribuirTempos`: dificuldade = `ln(100/p)`; peso = `max(0.05, dificuldade)^curva`. A ordem é a dificuldade (da mais comum para a mais rara); com `desordem` acima de 0 (padrão 0), leva um desvio gaussiano de `desordem` vezes a amplitude das dificuldades. A espera até cada conquista é um espaço sorteado entre `intervalo_minimo_minutos` e `intervalo_maximo_minutos` mais `peso * escala * (1 ± variacao)`, com `escala = (duração - soma dos espaços) / soma dos pesos`, então o total continua sendo a duração. Objetivo: quanto mais rara, mais demora, sem ritmo reconhecível entre uma conquista e outra.
 
 `Planejador.Replanejar`: na primeira sessão (`sincronizado` falso), depois de `Sincronizar`, redistribui só as pendentes a partir de `minutos_jogados`, numa duração igual à fatia do peso delas sobre o peso total. Sem isso, as conquistas que o usuário já tinha ocupavam o começo do cronograma e a primeira pendente demorava horas.
 

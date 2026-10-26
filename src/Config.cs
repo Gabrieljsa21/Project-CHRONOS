@@ -35,7 +35,7 @@ namespace Chronos
         public double Curva { get; set; } = 1.5;
         public double Variacao { get; set; } = 0.15;
         // Quanto a ordem foge da raridade: 0 = sempre da mais comum para a mais rara
-        public double Desordem { get; set; } = 0.15;
+        public double Desordem { get; set; } = 0.0;
         // Espaço entre duas conquistas seguidas: sorteado entre o mínimo e o máximo
         public double IntervaloMinimoMinutos { get; set; } = 15;
         public double IntervaloMaximoMinutos { get; set; } = 30;

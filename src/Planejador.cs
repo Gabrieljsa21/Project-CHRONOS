@@ -112,9 +112,10 @@ namespace Chronos
         // espaço sorteado entre intervalo_minimo e intervalo_maximo mais uma parte da duração
         // proporcional ao peso de dificuldade dela, ln(100 / p)^curva. Os espaços saem da
         // duração antes da divisão, então o total continua sendo a duração do jogo. Uma de 60%
-        // sai pouco depois do espaço mínimo; uma de 2% leva horas. Para não haver padrão: a ordem leva um desvio
-        // gaussiano (desordem) em torno da raridade, então uma rara pode vir antes de uma comum
-        // (e ainda demora o tempo dela); e a parte de dificuldade tem ruído de ±variacao.
+        // sai pouco depois do espaço mínimo; uma de 2% leva horas. Para o ritmo não ter padrão, o
+        // espaço é sorteado e a parte de dificuldade tem ruído de ±variacao. A ordem segue a
+        // raridade; `desordem` acima de 0 soma um desvio gaussiano a ela (uma rara pode vir antes
+        // de uma comum e ainda demora o tempo dela).
         internal static void DistribuirTempos(List<Conquista> conquistas, double duracaoMinutos, Config cfg, Random rng)
         {
             var n = conquistas.Count;

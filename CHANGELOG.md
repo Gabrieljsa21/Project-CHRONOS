@@ -4,6 +4,12 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-25
+
+### Alterado
+
+- A ordem dos desbloqueios volta a seguir a raridade, da mais comum para a mais rara (`desordem` passa de 0.15 para 0 por padrão). O "sem padrão" pedido na 0.2.0 era sobre o ritmo (pedido do usuário: "eu estava me referindo ao padrao de todas no msm tempo, a cd 15min por exemplo, ter a variação, pode seguir na ordem"); o intervalo sorteado entre `intervalo_minimo_minutos` e `intervalo_maximo_minutos` e o ruído de `variacao` continuam.
+
 ## [0.2.0] - 2026-10-25
 
 ### Adicionado
