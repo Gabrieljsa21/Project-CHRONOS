@@ -4,6 +4,16 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-26
+
+### Adicionado
+
+- Cada jogo roda num processo próprio, `CHRONOS - <jogo>.exe`, com o nome do jogo também na descrição, que é o que a aba "Processos" do Gerenciador de Tarefas mostra (pedido do usuário: "quero q crie um processo [...] p mim poder encerar ele e fechar pelo gerenciador de tarefas, caso queira parar apenas 1 por um momento, sem fechar tudo"). "Finalizar tarefa" num deles para só aquele jogo, até o CHRONOS reiniciar; antes, o agendador o reabria em 5 min. O nome nunca é o do executável real do jogo, para o Discord não confundir a cópia com o jogo.
+
+### Alterado
+
+- `config.json` inválido sai com código 5 (antes 1, que agora significa sessão encerrada pelo Gerenciador de Tarefas).
+
 ## [0.3.0] - 2026-10-25
 
 ### Adicionado

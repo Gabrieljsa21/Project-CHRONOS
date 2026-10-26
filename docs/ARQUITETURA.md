@@ -9,7 +9,11 @@ A `SAM.API.dll` é um assembly .NET Framework 4.8 de 32 bits que conversa com a 
 - **Agendador** (`Chronos.exe` sem argumentos): a cada 30 s relê o `config.json`, cria planos que faltam e decide quais jogos ficam abertos (janelas de horário, `jogos_simultaneos`, ordem da lista). Um mutex `Local\Project-CHRONOS` garante instância única.
 - **Sessão** (`Chronos.exe --sessao <appid> --pai <pid>`): um processo por jogo, porque a SAM.API só se conecta a um appid por processo. Enquanto o processo vive, a Steam mostra o jogo como aberto e conta horas. A sessão sai sozinha quando o agendador some; o agendador mata a sessão quando ela sai da janela.
 
-Códigos de saída da sessão: 0 ok, 2 sem estado, 3 falha ao conectar na Steam, 4 Steam não devolveu as estatísticas. Qualquer código diferente de 0 bloqueia o jogo por 5 min antes de nova tentativa.
+Códigos de saída da sessão: 0 ok, 1 encerrada por fora ("Finalizar tarefa" do Gerenciador de Tarefas usa o código 1), 2 sem estado, 3 falha ao conectar na Steam, 4 Steam não devolveu as estatísticas, 5 config.json inválido. O código 1 deixa o jogo parado até o agendador reiniciar (`Pausados`, só em memória); qualquer outro diferente de 0 bloqueia o jogo por 5 min antes de nova tentativa.
+
+## Um processo por jogo
+
+`ProcessoSessao.Preparar` copia o `Chronos.exe` (e o `.exe.config`, com os redirecionamentos de assembly) para `CHRONOS - <jogo>.exe` na mesma pasta, que tem as DLLs, e a sessão roda dessa cópia. A aba "Processos" do Gerenciador de Tarefas mostra a `FileDescription` do recurso de versão, não o nome do arquivo, então a cópia ganha um `VS_VERSIONINFO` novo com o nome do jogo (`BeginUpdateResource`/`UpdateResource`, RT_VERSION 1, idioma neutro). A cópia é refeita quando o `Chronos.exe` é recompilado. O prefixo `CHRONOS - ` é obrigatório: o Discord reconhece jogos pelo nome do executável, e a cópia nunca deve se passar pelo jogo. Se a cópia falhar (arquivo em uso), a sessão roda do próprio `Chronos.exe`.
 
 ## Biblioteca (`--biblioteca`)
 

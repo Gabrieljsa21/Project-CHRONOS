@@ -14,7 +14,13 @@ namespace Chronos
         private static readonly TimeSpan EsperaAposFalhaSessao = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan EsperaAposFalhaPlano = TimeSpan.FromMinutes(30);
 
+        // "Finalizar tarefa" do Gerenciador de Tarefas encerra o processo com código 1
+        private const int CodigoEncerradaPorFora = 1;
+
         private static readonly Dictionary<uint, Process> Sessoes = new Dictionary<uint, Process>();
+        private static readonly Dictionary<uint, string> Nomes = new Dictionary<uint, string>();
+        // Jogos cuja sessão foi encerrada por fora: ficam parados até o agendador reiniciar
+        private static readonly HashSet<uint> Pausados = new HashSet<uint>();
         private static readonly Dictionary<uint, DateTime> BloqueadoAte = new Dictionary<uint, DateTime>();
         // Separado do bloqueio de sessão: jogo sem plano ainda pode ficar aberto com manter_aberto
         private static readonly Dictionary<uint, DateTime> PlanoBloqueadoAte = new Dictionary<uint, DateTime>();
@@ -56,6 +62,7 @@ namespace Chronos
             foreach (var jogo in cfg.Jogos)
             {
                 var estado = EstadoJogo.Carregar(jogo.Appid) ?? CriarPlano(jogo, cfg, rng);
+                Nomes[jogo.Appid] = estado?.Nome ?? jogo.Nome ?? jogo.Appid.ToString();
                 if (estado != null && !estado.Concluido) pendentes.Add(jogo.Appid);
                 else if (cfg.ManterAberto) ociosos.Add(jogo.Appid);
             }
@@ -100,7 +107,7 @@ namespace Chronos
         {
             var info = new ProcessStartInfo
             {
-                FileName = Process.GetCurrentProcess().MainModule.FileName,
+                FileName = ProcessoSessao.Preparar(Process.GetCurrentProcess().MainModule.FileName, Nomes[appid]),
                 Arguments = $"--sessao {appid} --pai {Process.GetCurrentProcess().Id}",
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -115,7 +122,12 @@ namespace Chronos
             {
                 var codigo = par.Value.ExitCode;
                 Sessoes.Remove(par.Key);
-                if (codigo != Sessao.Ok)
+                if (codigo == CodigoEncerradaPorFora)
+                {
+                    Log.Escrever($"sessão de {par.Key} encerrada por fora (Gerenciador de Tarefas); parado até o CHRONOS reiniciar");
+                    Pausados.Add(par.Key);
+                }
+                else if (codigo != Sessao.Ok)
                 {
                     // Steam fechada, jogo não possuído etc.: tenta de novo mais tarde
                     Log.Escrever($"sessão de {par.Key} terminou com código {codigo}; nova tentativa em {EsperaAposFalhaSessao.TotalMinutes} min");
@@ -125,7 +137,7 @@ namespace Chronos
         }
 
         private static bool Liberado(uint appid) =>
-            !BloqueadoAte.TryGetValue(appid, out var ate) || DateTime.Now >= ate;
+            !Pausados.Contains(appid) && (!BloqueadoAte.TryGetValue(appid, out var ate) || DateTime.Now >= ate);
 
         internal static bool DentroDaJanela(Config cfg, DateTime agora)
         {
