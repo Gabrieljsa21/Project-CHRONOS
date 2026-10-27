@@ -16,6 +16,8 @@ namespace Chronos
         public const string Ignorada = "ignorada";
         // Conquista de um Achievement Set de DLC que a conta não tem: a Steam recusaria
         public const string SemDlc = "sem_dlc";
+        // A Steam recusou a gravação em todas as tentativas; a próxima sessão confere de novo
+        public const string Recusada = "recusada";
     }
 
     internal sealed class Conquista
@@ -29,6 +31,8 @@ namespace Chronos
         public int Falhas { get; set; }
         public bool Simulada { get; set; }
         public DateTime? DesbloqueadaEm { get; set; }
+
+        internal bool Recusada => Situacao == Chronos.Situacao.Recusada || (Situacao == Chronos.Situacao.Ignorada && Falhas > 0);
     }
 
     internal sealed class EstadoJogo
@@ -45,6 +49,9 @@ namespace Chronos
         public List<Conquista> Conquistas { get; set; } = new List<Conquista>();
 
         public bool Concluido => Conquistas.All(c => c.Situacao != Situacao.Pendente);
+
+        // Inclui as "ignorada" com falhas, que é como a 0.5.0 e anteriores guardavam as recusadas
+        internal bool TemRecusadas => Conquistas.Any(c => c.Recusada);
 
         public IEnumerable<Conquista> Pendentes =>
             Conquistas.Where(c => c.Situacao == Situacao.Pendente).OrderBy(c => c.Minuto);

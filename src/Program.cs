@@ -94,7 +94,8 @@ namespace Chronos
                 }
                 var feitas = estado.Conquistas.Count(c => c.Situacao == Situacao.Desbloqueada || c.Situacao == Situacao.JaTinha);
                 var semDlc = estado.Conquistas.Count(c => c.Situacao == Situacao.SemDlc);
-                Console.WriteLine($"- {estado.Nome} ({estado.Appid}): {feitas}/{estado.Conquistas.Count} conquistas{(semDlc > 0 ? $" ({semDlc} sem DLC)" : "")}, {Horas(estado.MinutosJogados)} de {Horas(estado.DuracaoMinutos)} jogadas");
+                var recusadas = estado.Conquistas.Count(c => c.Recusada);
+                Console.WriteLine($"- {estado.Nome} ({estado.Appid}): {feitas}/{estado.Conquistas.Count} conquistas{(semDlc > 0 ? $" ({semDlc} sem DLC)" : "")}{(recusadas > 0 ? $" ({recusadas} recusadas pela Steam, nova tentativa na próxima sessão)" : "")}, {Horas(estado.MinutosJogados)} de {Horas(estado.DuracaoMinutos)} jogadas");
                 var proxima = estado.Pendentes.FirstOrDefault();
                 if (estado.Concluido && cfg.ManterAberto) Console.WriteLine("    concluído; fica aberto só para contar horas");
                 if (proxima != null)

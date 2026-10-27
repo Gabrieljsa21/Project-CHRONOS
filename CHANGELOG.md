@@ -4,6 +4,12 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-27
+
+### Corrigido
+
+- The Darkness II aparecia como concluído com 43 de 50 conquistas na Steam, e o jogo nem tem DLC (relato do usuário: "o jogo darkness 2 esta como completo, mas na steam ta 43/50"). Entre 16h45 e 19h03 de 2026-10-26, a Steam recusou toda gravação daquele jogo e voltou a aceitar depois; o Portal 2 teve o mesmo problema por meia hora. O CHRONOS fazia 3 tentativas em 3 min, marcava a conquista como `ignorada` e o jogo contava como concluído. Agora, depois de cada recusa, a sessão pede as estatísticas de novo e manda a conquista para o fim da fila por 30, 60 e 120 min de jogo. Depois da 4ª recusa, ela vira `recusada` (situação nova). Cada sessão que abre confere as recusadas com a Steam: as que a conta já tem viram `ja_tinha`, e as outras voltam a pendentes, espaçadas de 15 a 45 min a partir do minuto atual. A sessão abre mesmo com o jogo concluído. As `ignorada` com falhas das versões anteriores contam como recusadas, então as 7 do The Darkness II voltam sozinhas. `--status` mostra quantas há.
+
 ## [0.5.0] - 2026-10-26
 
 ### Alterado
