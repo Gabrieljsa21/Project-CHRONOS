@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Chronos
 {
@@ -69,6 +71,32 @@ namespace Chronos
                 Log.Escrever($"config.json criado em {Caminhos.Config}");
             }
             return JsonSerializer.Deserialize<Config>(File.ReadAllText(Caminhos.Config), Json) ?? new Config();
+        }
+
+        // Regrava só a ordem de "jogos", com o resto do arquivo como está (a GAIA também grava
+        // nele). Troca atômica, como o estado: o agendador e a GAIA nunca leem pela metade
+        public static void SalvarOrdemJogos(IList<uint> ordem)
+        {
+            var raiz = JsonNode.Parse(File.ReadAllText(Caminhos.Config), documentOptions: new JsonDocumentOptions
+            {
+                CommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true,
+            }).AsObject();
+            var jogos = raiz["jogos"].AsArray();
+            var itens = jogos.ToList();
+            jogos.Clear();
+            foreach (var item in itens.OrderBy(i => { var p = ordem.IndexOf(i["appid"].GetValue<uint>()); return p < 0 ? int.MaxValue : p; }))
+            {
+                jogos.Add(item);
+            }
+
+            var temporario = Caminhos.Config + ".tmp";
+            File.WriteAllText(temporario, raiz.ToJsonString(new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            }), new UTF8Encoding(false));
+            File.Replace(temporario, Caminhos.Config, null);
         }
     }
 

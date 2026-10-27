@@ -6,7 +6,7 @@ A `SAM.API.dll` é um assembly .NET Framework 4.8 de 32 bits que conversa com a 
 
 ## Dois tipos de processo
 
-- **Agendador** (`Chronos.exe` sem argumentos): a cada 30 s relê o `config.json`, cria planos que faltam e decide quais jogos ficam abertos (janelas de horário, `jogos_simultaneos`, ordem da lista). Um mutex `Local\Project-CHRONOS` garante instância única.
+- **Agendador** (`Chronos.exe` sem argumentos): a cada 30 s relê o `config.json`, cria planos que faltam e decide quais jogos ficam abertos (janelas de horário, `jogos_simultaneos`, ordem da lista). Também põe os jogos concluídos no topo da lista, ordenados pelo último `desbloqueada_em` (`ReordenarFila`), e regrava só o array `jogos` via `JsonNode` (`Config.SalvarOrdemJogos`), para não apagar campos que a GAIA grave e o `Config` não conheça. Um mutex `Local\Project-CHRONOS` garante instância única.
 - **Sessão** (`Chronos.exe --sessao <appid> --pai <pid>`): um processo por jogo, porque a SAM.API só se conecta a um appid por processo. Enquanto o processo vive, a Steam mostra o jogo como aberto e conta horas. A sessão sai sozinha quando o agendador some; o agendador mata a sessão quando ela sai da janela.
 
 Códigos de saída da sessão: 0 ok, 1 encerrada por fora ("Finalizar tarefa" do Gerenciador de Tarefas usa o código 1), 2 sem estado, 3 falha ao conectar na Steam, 4 Steam não devolveu as estatísticas, 5 config.json inválido. O código 1 deixa o jogo parado até o agendador reiniciar (`Pausados`, só em memória); qualquer outro diferente de 0 bloqueia o jogo por 5 min antes de nova tentativa.

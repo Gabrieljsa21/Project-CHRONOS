@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 
@@ -59,13 +60,16 @@ namespace Chronos
 
             var pendentes = new List<uint>();
             var ociosos = new List<uint>();
+            var estados = new Dictionary<uint, EstadoJogo>();
             foreach (var jogo in cfg.Jogos)
             {
                 var estado = EstadoJogo.Carregar(jogo.Appid) ?? CriarPlano(jogo, cfg, rng);
+                estados[jogo.Appid] = estado;
                 Nomes[jogo.Appid] = estado?.Nome ?? jogo.Nome ?? jogo.Appid.ToString();
                 if (estado != null && !estado.Concluido && !estado.Parado) pendentes.Add(jogo.Appid);
                 else if (cfg.ManterAberto) ociosos.Add(jogo.Appid);
             }
+            ReordenarFila(cfg, estados);
 
             // Os jogos com conquistas a liberar têm prioridade nas vagas de jogos_simultaneos
             var desejados = DentroDaJanela(cfg, DateTime.Now)
@@ -82,6 +86,27 @@ namespace Chronos
             foreach (var appid in desejados.Where(a => !Sessoes.ContainsKey(a)))
             {
                 AbrirSessao(appid);
+            }
+        }
+
+        // Jogo concluído sobe para o topo da lista, o último concluído primeiro; os outros
+        // mantêm a ordem do usuário, que continua decidindo quem pega as vagas
+        private static void ReordenarFila(Config cfg, Dictionary<uint, EstadoJogo> estados)
+        {
+            bool Concluido(JogoConfig j) => estados.TryGetValue(j.Appid, out var e) && e != null && e.Concluido;
+            var ordem = cfg.Jogos.Where(Concluido).OrderByDescending(j => estados[j.Appid].ConcluidoEm ?? DateTime.MinValue)
+                .Concat(cfg.Jogos.Where(j => !Concluido(j))).Select(j => j.Appid).ToList();
+            if (ordem.SequenceEqual(cfg.Jogos.Select(j => j.Appid))) return;
+
+            try
+            {
+                Config.SalvarOrdemJogos(ordem);
+                Log.Escrever("fila reordenada: jogos concluídos no topo");
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                // A GAIA pode estar gravando o config.json agora: tenta de novo no próximo ciclo
+                Log.Escrever($"não foi possível reordenar a fila: {e.Message}");
             }
         }
 
