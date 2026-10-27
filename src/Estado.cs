@@ -56,6 +56,9 @@ namespace Chronos
 
         internal bool Parado => ParadoEm != null;
 
+        // Último desbloqueio; null quando todas já existiam na conta antes do CHRONOS
+        internal DateTime? ConcluidoEm => Conquistas.Max(c => c.DesbloqueadaEm);
+
         // Inclui as "ignorada" com falhas, que é como a 0.5.0 e anteriores guardavam as recusadas
         internal bool TemRecusadas => Conquistas.Any(c => c.Recusada);
 

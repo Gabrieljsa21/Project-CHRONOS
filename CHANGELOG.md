@@ -4,6 +4,12 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-27
+
+### Adicionado
+
+- O agendador reordena a lista de jogos do `config.json`: um jogo concluído (sem conquista pendente) sobe para o topo, o último concluído primeiro (pedido do usuário: "o chronos tem de reordenar os jogos na fila, p qnd um ficar completo, ir para o topo"). Os outros mantêm a ordem que o usuário escolheu, e os jogos com conquistas a liberar continuam com prioridade nas vagas de `jogos_simultaneos`, então a ordem de desbloqueio não muda. Só a lista `jogos` é regravada (`Config.SalvarOrdemJogos`, troca atômica); os outros campos do arquivo ficam como estão.
+
 ## [0.6.0] - 2026-10-27
 
 ### Alterado
