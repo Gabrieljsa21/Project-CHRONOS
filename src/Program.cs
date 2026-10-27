@@ -50,6 +50,9 @@ namespace Chronos
                     AnexarConsole();
                     Comandos.Plano(cfg, uint.Parse(args[1]));
                     return 0;
+                case "--retomar":
+                    AnexarConsole();
+                    return Comandos.Retomar(uint.Parse(args[1]));
                 case "--biblioteca":
                     AnexarConsole();
                     return Biblioteca.Executar();
@@ -57,7 +60,7 @@ namespace Chronos
                     return Agendador.Executar();
                 default:
                     AnexarConsole();
-                    Console.WriteLine("uso: Chronos.exe [--status | --plano <appid> | --biblioteca]");
+                    Console.WriteLine("uso: Chronos.exe [--status | --plano <appid> | --retomar <appid> | --biblioteca]");
                     return 1;
             }
         }
@@ -97,12 +100,36 @@ namespace Chronos
                 var recusadas = estado.Conquistas.Count(c => c.Recusada);
                 Console.WriteLine($"- {estado.Nome} ({estado.Appid}): {feitas}/{estado.Conquistas.Count} conquistas{(semDlc > 0 ? $" ({semDlc} sem DLC)" : "")}{(recusadas > 0 ? $" ({recusadas} recusadas pela Steam, nova tentativa na próxima sessão)" : "")}, {Horas(estado.MinutosJogados)} de {Horas(estado.DuracaoMinutos)} jogadas");
                 var proxima = estado.Pendentes.FirstOrDefault();
-                if (estado.Concluido && cfg.ManterAberto) Console.WriteLine("    concluído; fica aberto só para contar horas");
+                if (estado.Parado)
+                {
+                    var travada = estado.Conquistas.FirstOrDefault(c => c.ApiName == estado.ParadoNa);
+                    Console.WriteLine($"    PARADO desde {estado.ParadoEm:dd/MM HH:mm}: a Steam recusou '{travada?.Nome ?? estado.ParadoNa}' por 1 h (Chronos.exe --retomar {estado.Appid})");
+                }
+                else if (estado.Concluido && cfg.ManterAberto) Console.WriteLine("    concluído; fica aberto só para contar horas");
                 if (proxima != null)
                 {
                     Console.WriteLine($"    próxima: {proxima.Nome} ({proxima.Porcentagem:F1}%) em {Horas(Math.Max(0, proxima.Minuto - estado.MinutosJogados))} de jogo");
                 }
             }
+        }
+
+        // Tira o jogo do estado parado: a conquista que a Steam recusava é tentada de novo na
+        // próxima sessão, e as seguintes andam junto (o atraso é compensado no desbloqueio)
+        public static int Retomar(uint appid)
+        {
+            var estado = EstadoJogo.Carregar(appid);
+            if (estado == null || !estado.Parado)
+            {
+                Console.WriteLine($"{appid}: não está parado");
+                return 0;
+            }
+            estado.ParadoEm = null;
+            estado.ParadoNa = null;
+            foreach (var c in estado.Pendentes) c.Falhas = 0;
+            estado.Salvar();
+            Log.Escrever($"{estado.Nome} retomado");
+            Console.WriteLine($"{estado.Nome} retomado");
+            return 0;
         }
 
         // Mostra um cronograma de exemplo sem salvar nada

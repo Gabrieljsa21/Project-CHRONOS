@@ -4,6 +4,16 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-27
+
+### Alterado
+
+- As conquistas saem sempre na ordem do cronograma (pedido do usuário: "as conquistas tem de ser feita em ordem, se ela n foi concluida, espera 15min e tenta dnovo, ate ir. Se apos 1h n ir, pare e me notifique"). A conquista que a Steam recusa segura a fila e é tentada de novo a cada 15 min, com um novo pedido de estatísticas. Antes, a 0.5.1 a mandava para o fim da fila. Depois de 1 h de recusas na mesma sessão, o jogo para: o estado ganha `parado_em` e `parado_na` (api_name da conquista), nenhuma conquista sai e, com `manter_aberto`, o jogo continua aberto só para contar horas. Quando a conquista presa sai, as seguintes andam o mesmo tanto de minutos, para não saírem em bloco. A situação `recusada` deixa de ser criada; as da 0.5.1 voltam a pendentes na sincronização.
+
+### Adicionado
+
+- `Chronos.exe --retomar <appid>` tira o jogo do estado parado; a GAIA chama esse comando pelo botão "Tentar de novo". `--status` mostra os jogos parados.
+
 ## [0.5.1] - 2026-10-27
 
 ### Corrigido

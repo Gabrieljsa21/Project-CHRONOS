@@ -16,7 +16,8 @@ namespace Chronos
         public const string Ignorada = "ignorada";
         // Conquista de um Achievement Set de DLC que a conta não tem: a Steam recusaria
         public const string SemDlc = "sem_dlc";
-        // A Steam recusou a gravação em todas as tentativas; a próxima sessão confere de novo
+        // Só da 0.5.1: a Steam recusou 4 vezes. Desde a 0.6.0 a recusa segura a fila (ParadoEm),
+        // e a sincronização devolve estas a pendentes
         public const string Recusada = "recusada";
     }
 
@@ -47,8 +48,13 @@ namespace Chronos
         // o cronograma só com o que falta
         public bool Sincronizado { get; set; }
         public List<Conquista> Conquistas { get; set; } = new List<Conquista>();
+        // A Steam recusou a conquista ParadoNa (api_name) por 1 h: nada mais sai até --retomar
+        public DateTime? ParadoEm { get; set; }
+        public string ParadoNa { get; set; }
 
         public bool Concluido => Conquistas.All(c => c.Situacao != Situacao.Pendente);
+
+        internal bool Parado => ParadoEm != null;
 
         // Inclui as "ignorada" com falhas, que é como a 0.5.0 e anteriores guardavam as recusadas
         internal bool TemRecusadas => Conquistas.Any(c => c.Recusada);
