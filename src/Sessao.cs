@@ -15,7 +15,10 @@ namespace Chronos
         public const int FalhaSteam = 3;
         public const int FalhaStats = 4;
 
-        private const int MaximoFalhas = 3;
+        private const int MaximoFalhas = 4;
+        // Depois de cada recusa a conquista vai para o fim da fila por 30, 60 e 120 min: a Steam
+        // recusa por algumas horas e volta a aceitar (The Darkness II em 2026-10-26)
+        private const double AdiamentoAposFalhaMinutos = 30;
         private const double MaximoMinutosPorCiclo = 2.0;
 
         public static int Executar(uint appid, int pidPai, Config cfg)
@@ -40,7 +43,8 @@ namespace Chronos
                     return FalhaSteam;
                 }
 
-                if (estado != null && !estado.Concluido)
+                // Recusadas pela Steam ganham uma nova rodada a cada sessão aberta
+                if (estado != null && (!estado.Concluido || estado.TemRecusadas))
                 {
                     var codigo = LiberarConquistas(cliente, appid, pidPai, estado, cfg);
                     if (codigo != Ok || !estado.Concluido) return codigo;
@@ -109,7 +113,7 @@ namespace Chronos
                 var proxima = estado.Pendentes.FirstOrDefault();
                 if (proxima != null && proxima.Minuto <= estado.MinutosJogados)
                 {
-                    Desbloquear(cliente, proxima, cfg.Simulacao);
+                    Desbloquear(cliente, appid, estado, proxima, cfg.Simulacao);
                 }
                 estado.Salvar();
             }
@@ -149,7 +153,8 @@ namespace Chronos
         {
             var stats = cliente.SteamUserStats;
             var dlcs = EsquemaSteam.ConquistasDeDlc(estado.Appid);
-            foreach (var c in estado.Conquistas.Where(c => c.Situacao == Situacao.Pendente || c.Situacao == Situacao.SemDlc
+            var recusadas = estado.Conquistas.Where(c => c.Recusada).ToList();
+            foreach (var c in estado.Conquistas.Where(c => c.Situacao == Situacao.Pendente || c.Situacao == Situacao.SemDlc || c.Recusada
                                                            || (!simulacao && c.Simulada && c.Situacao == Situacao.Desbloqueada)))
             {
                 c.Simulada = false;
@@ -168,6 +173,18 @@ namespace Chronos
                 var temDlc = !dlcs.TryGetValue(c.ApiName, out var dlc) || cliente.SteamApps008.IsSubscribedApp(dlc);
                 c.Situacao = temDlc ? Situacao.Pendente : Situacao.SemDlc;
             }
+
+            // As recusadas que voltam a pendentes saem espaçadas a partir de agora, nunca em bloco
+            var minuto = estado.MinutosJogados;
+            var sorteio = new Random();
+            foreach (var c in recusadas.Where(c => c.Situacao == Situacao.Pendente))
+            {
+                c.Falhas = 0;
+                minuto += 15 + sorteio.NextDouble() * 30;
+                c.Minuto = Math.Round(minuto, 1);
+            }
+            var novaChance = recusadas.Count(c => c.Situacao == Situacao.Pendente);
+            if (novaChance > 0) Log.Escrever($"{novaChance} conquista(s) recusada(s) pela Steam voltam a pendentes");
             var semDlc = estado.Conquistas.Count(c => c.Situacao == Situacao.SemDlc);
             if (semDlc > 0) Log.Escrever($"{semDlc} conquista(s) de DLC que a conta não tem ficam de fora");
 
@@ -178,7 +195,7 @@ namespace Chronos
             }
         }
 
-        private static void Desbloquear(SAM.API.Client cliente, Conquista c, bool simulacao)
+        private static void Desbloquear(SAM.API.Client cliente, uint appid, EstadoJogo estado, Conquista c, bool simulacao)
         {
             if (simulacao)
             {
@@ -197,10 +214,19 @@ namespace Chronos
                 return;
             }
 
-            // Conquistas protegidas pelo servidor do jogo recusam a gravação
+            // A Steam recusa por um tempo (estatísticas da sessão invalidadas) ou para sempre
+            // (conquista protegida pelo servidor do jogo); pedir as estatísticas de novo cobre o primeiro caso
             c.Falhas++;
-            Log.Escrever($"falha ao desbloquear '{c.Nome}' (tentativa {c.Falhas}/{MaximoFalhas})");
-            if (c.Falhas >= MaximoFalhas) c.Situacao = Situacao.Ignorada;
+            if (c.Falhas >= MaximoFalhas)
+            {
+                c.Situacao = Situacao.Recusada;
+                Log.Escrever($"a Steam recusou '{c.Nome}' {c.Falhas} vezes; nova tentativa na próxima sessão");
+                return;
+            }
+            var adiamento = AdiamentoAposFalhaMinutos * Math.Pow(2, c.Falhas - 1);
+            c.Minuto = Math.Round(estado.MinutosJogados + adiamento, 1);
+            Log.Escrever($"falha ao desbloquear '{c.Nome}' (tentativa {c.Falhas}/{MaximoFalhas}); nova tentativa em {adiamento:F0} min de jogo");
+            if (!ReceberStats(cliente, appid)) Log.Escrever("a Steam não devolveu as estatísticas do usuário de novo");
         }
 
         // Espera processando callbacks; falso se o agendador que abriu a sessão sumiu
