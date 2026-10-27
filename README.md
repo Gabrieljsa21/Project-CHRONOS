@@ -38,6 +38,7 @@ O exemplo vem com `"simulacao": true`: a sessão abre na Steam e conta horas, ma
 | `Chronos.exe` | Agendador em segundo plano, sem janela. Só uma instância roda por vez. |
 | `Chronos.exe --status` | Progresso de cada jogo e a próxima conquista. |
 | `Chronos.exe --plano <appid>` | Mostra um cronograma de exemplo, sem salvar nada. |
+| `Chronos.exe --retomar <appid>` | Tira o jogo do estado parado (a Steam recusou a mesma conquista por 1 h). |
 | `Chronos.exe --biblioteca` | Lista em JSON todos os jogos que a conta pode abrir, inclusive os da família. Precisa da Steam aberta. |
 
 O log fica em `%APPDATA%\Chronos\chronos.log` e o estado de cada jogo em `%APPDATA%\Chronos\estado\<appid>.json`. Para refazer o plano de um jogo, apague o arquivo de estado dele.

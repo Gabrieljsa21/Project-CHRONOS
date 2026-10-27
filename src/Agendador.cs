@@ -63,7 +63,7 @@ namespace Chronos
             {
                 var estado = EstadoJogo.Carregar(jogo.Appid) ?? CriarPlano(jogo, cfg, rng);
                 Nomes[jogo.Appid] = estado?.Nome ?? jogo.Nome ?? jogo.Appid.ToString();
-                if (estado != null && !estado.Concluido) pendentes.Add(jogo.Appid);
+                if (estado != null && !estado.Concluido && !estado.Parado) pendentes.Add(jogo.Appid);
                 else if (cfg.ManterAberto) ociosos.Add(jogo.Appid);
             }
 

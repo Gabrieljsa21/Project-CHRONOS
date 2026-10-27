@@ -15,10 +15,11 @@ namespace Chronos
         public const int FalhaSteam = 3;
         public const int FalhaStats = 4;
 
-        private const int MaximoFalhas = 4;
-        // Depois de cada recusa a conquista vai para o fim da fila por 30, 60 e 120 min: a Steam
-        // recusa por algumas horas e volta a aceitar (The Darkness II em 2026-10-26)
-        private const double AdiamentoAposFalhaMinutos = 30;
+        // As conquistas saem sempre na ordem do cronograma: a que a Steam recusa segura a fila e
+        // é tentada de novo a cada 15 min. Depois de 1 h recusando, o jogo para até o usuário
+        // retomar (--retomar), e o indicador da GAIA mostra "!"
+        private static readonly TimeSpan EsperaAposFalha = TimeSpan.FromMinutes(15);
+        private static readonly TimeSpan TempoMaximoRecusando = TimeSpan.FromHours(1);
         private const double MaximoMinutosPorCiclo = 2.0;
 
         public static int Executar(uint appid, int pidPai, Config cfg)
@@ -43,8 +44,8 @@ namespace Chronos
                     return FalhaSteam;
                 }
 
-                // Recusadas pela Steam ganham uma nova rodada a cada sessão aberta
-                if (estado != null && (!estado.Concluido || estado.TemRecusadas))
+                // Recusadas da 0.5.1 e anteriores voltam a pendentes na sincronização
+                if (estado != null && !estado.Parado && (!estado.Concluido || estado.TemRecusadas))
                 {
                     var codigo = LiberarConquistas(cliente, appid, pidPai, estado, cfg);
                     if (codigo != Ok || !estado.Concluido) return codigo;
@@ -57,7 +58,7 @@ namespace Chronos
                 {
                     // Plano criado depois (o jogo ganhou conquistas): o agendador reabre no modo normal
                     var atual = EstadoJogo.Carregar(appid);
-                    if (atual != null && !atual.Concluido)
+                    if (atual != null && !atual.Concluido && !atual.Parado)
                     {
                         Log.Escrever("plano de conquistas disponível; reabrindo a sessão");
                         return Ok;
@@ -94,7 +95,9 @@ namespace Chronos
 
             var acelerar = double.TryParse(Environment.GetEnvironmentVariable("CHRONOS_ACELERAR"), out var fator) ? fator : 1.0;
             var relogio = Stopwatch.StartNew();
-            while (!estado.Concluido)
+            DateTime? primeiraRecusa = null;
+            var proximaTentativa = DateTime.MinValue;
+            while (!estado.Concluido && !estado.Parado)
             {
                 if (!Aguardar(cliente, pidPai, TimeSpan.FromSeconds(60)))
                 {
@@ -111,15 +114,34 @@ namespace Chronos
 
                 // No máximo uma por ciclo, para nunca sair um bloco de conquistas no mesmo instante
                 var proxima = estado.Pendentes.FirstOrDefault();
-                if (proxima != null && proxima.Minuto <= estado.MinutosJogados)
+                if (proxima != null && proxima.Minuto <= estado.MinutosJogados && DateTime.Now >= proximaTentativa)
                 {
-                    Desbloquear(cliente, appid, estado, proxima, cfg.Simulacao);
+                    if (Desbloquear(cliente, estado, proxima, cfg.Simulacao))
+                    {
+                        primeiraRecusa = null;
+                    }
+                    else
+                    {
+                        primeiraRecusa = primeiraRecusa ?? DateTime.Now;
+                        if (DateTime.Now - primeiraRecusa >= TempoMaximoRecusando)
+                        {
+                            estado.ParadoEm = DateTime.Now;
+                            estado.ParadoNa = proxima.ApiName;
+                            Log.Escrever($"a Steam recusa '{proxima.Nome}' há {TempoMaximoRecusando.TotalMinutes:F0} min ({proxima.Falhas} tentativas); jogo parado até retomar");
+                        }
+                        else
+                        {
+                            proximaTentativa = DateTime.Now + EsperaAposFalha;
+                            Log.Escrever($"falha ao desbloquear '{proxima.Nome}' (tentativa {proxima.Falhas}); nova tentativa em {EsperaAposFalha.TotalMinutes:F0} min");
+                            if (!ReceberStats(cliente, appid)) Log.Escrever("a Steam não devolveu as estatísticas do usuário de novo");
+                        }
+                    }
                 }
                 estado.Salvar();
             }
 
             discord?.Dispose();
-            Log.Escrever($"{estado.Nome} concluído");
+            if (!estado.Parado) Log.Escrever($"{estado.Nome} concluído");
             return Ok;
         }
 
@@ -195,7 +217,9 @@ namespace Chronos
             }
         }
 
-        private static void Desbloquear(SAM.API.Client cliente, uint appid, EstadoJogo estado, Conquista c, bool simulacao)
+        // Verdadeiro se a Steam gravou. Com atraso (a fila ficou presa numa recusa), as seguintes
+        // andam o mesmo tanto, para não saírem em bloco
+        private static bool Desbloquear(SAM.API.Client cliente, EstadoJogo estado, Conquista c, bool simulacao)
         {
             if (simulacao)
             {
@@ -203,30 +227,27 @@ namespace Chronos
                 c.Simulada = true;
                 c.DesbloqueadaEm = DateTime.Now;
                 Log.Escrever($"[simulação] desbloquearia '{c.Nome}' ({c.Porcentagem:F1}%) no minuto {c.Minuto:F0}");
-                return;
-            }
-
-            if (cliente.SteamUserStats.SetAchievement(c.ApiName, true) && cliente.SteamUserStats.StoreStats())
-            {
-                c.Situacao = Situacao.Desbloqueada;
-                c.DesbloqueadaEm = DateTime.Now;
-                Log.Escrever($"desbloqueada '{c.Nome}' ({c.Porcentagem:F1}%) no minuto {c.Minuto:F0}");
-                return;
+                return true;
             }
 
             // A Steam recusa por um tempo (estatísticas da sessão invalidadas) ou para sempre
-            // (conquista protegida pelo servidor do jogo); pedir as estatísticas de novo cobre o primeiro caso
-            c.Falhas++;
-            if (c.Falhas >= MaximoFalhas)
+            // (conquista protegida pelo servidor do jogo)
+            if (!cliente.SteamUserStats.SetAchievement(c.ApiName, true) || !cliente.SteamUserStats.StoreStats())
             {
-                c.Situacao = Situacao.Recusada;
-                Log.Escrever($"a Steam recusou '{c.Nome}' {c.Falhas} vezes; nova tentativa na próxima sessão");
-                return;
+                c.Falhas++;
+                return false;
             }
-            var adiamento = AdiamentoAposFalhaMinutos * Math.Pow(2, c.Falhas - 1);
-            c.Minuto = Math.Round(estado.MinutosJogados + adiamento, 1);
-            Log.Escrever($"falha ao desbloquear '{c.Nome}' (tentativa {c.Falhas}/{MaximoFalhas}); nova tentativa em {adiamento:F0} min de jogo");
-            if (!ReceberStats(cliente, appid)) Log.Escrever("a Steam não devolveu as estatísticas do usuário de novo");
+
+            c.Situacao = Situacao.Desbloqueada;
+            c.DesbloqueadaEm = DateTime.Now;
+            c.Falhas = 0;
+            Log.Escrever($"desbloqueada '{c.Nome}' ({c.Porcentagem:F1}%) no minuto {c.Minuto:F0}");
+            var atraso = estado.MinutosJogados - c.Minuto;
+            if (atraso > 1)
+            {
+                foreach (var seguinte in estado.Pendentes) seguinte.Minuto = Math.Round(seguinte.Minuto + atraso, 1);
+            }
+            return true;
         }
 
         // Espera processando callbacks; falso se o agendador que abriu a sessão sumiu
