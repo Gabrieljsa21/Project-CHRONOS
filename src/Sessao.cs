@@ -137,9 +137,10 @@ namespace Chronos
                 relogio.Restart();
                 estado.MinutosJogados += delta * acelerar;
 
-                // No máximo uma por ciclo, para nunca sair um bloco de conquistas no mesmo instante
+                // No máximo uma por ciclo, e de 1 a 2 min depois da última de qualquer jogo (Vez),
+                // para nunca sair um bloco de conquistas no mesmo instante
                 var proxima = estado.Pendentes.FirstOrDefault();
-                if (proxima != null && proxima.Minuto <= estado.MinutosJogados && DateTime.Now >= proximaTentativa)
+                if (proxima != null && proxima.Minuto <= estado.MinutosJogados && DateTime.Now >= proximaTentativa && Vez.Pegar())
                 {
                     if (Desbloquear(cliente, estado, proxima, cfg.Simulacao))
                     {
