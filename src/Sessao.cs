@@ -14,6 +14,7 @@ namespace Chronos
         public const int SemEstado = 2;
         public const int FalhaSteam = 3;
         public const int FalhaStats = 4;
+        public const int SteamReiniciada = 6;
 
         // As conquistas saem sempre na ordem do cronograma: a que a Steam recusa segura a fila e
         // é tentada de novo a cada 15 min. Depois de 1 h recusando, o jogo para até o usuário
@@ -21,6 +22,9 @@ namespace Chronos
         private static readonly TimeSpan EsperaAposFalha = TimeSpan.FromMinutes(15);
         private static readonly TimeSpan TempoMaximoRecusando = TimeSpan.FromHours(1);
         private const double MaximoMinutosPorCiclo = 2.0;
+
+        // Instância da Steam a que a sessão se conectou; se ela reiniciar, a conexão fica morta
+        private static int pidSteam;
 
         public static int Executar(uint appid, int pidPai, Config cfg)
         {
@@ -43,6 +47,7 @@ namespace Chronos
                     Log.Escrever($"falha ao conectar na Steam ({e.Failure}): {e.Message}");
                     return FalhaSteam;
                 }
+                pidSteam = SteamLocal.Pid();
 
                 // Recusadas da 0.5.1 e anteriores voltam a pendentes na sincronização
                 if (estado != null && !estado.Parado && (!estado.Concluido || estado.TemRecusadas))
@@ -56,6 +61,11 @@ namespace Chronos
                 Log.Escrever($"aberto só para contar horas ({(estado == null ? "sem plano de conquistas" : "conquistas concluídas")})");
                 while (Aguardar(cliente, pidPai, TimeSpan.FromSeconds(60)))
                 {
+                    if (SteamLocal.Mudou(pidSteam))
+                    {
+                        Log.Escrever("a Steam reiniciou; fechando a sessão para o agendador reabrir");
+                        return SteamReiniciada;
+                    }
                     // Plano criado depois (o jogo ganhou conquistas): o agendador reabre no modo normal
                     var atual = EstadoJogo.Carregar(appid);
                     if (atual != null && !atual.Concluido && !atual.Parado)
@@ -112,6 +122,13 @@ namespace Chronos
                     Log.Escrever("agendador encerrado; fechando sessão");
                     discord?.Dispose();
                     return Ok;
+                }
+                if (SteamLocal.Mudou(pidSteam))
+                {
+                    Log.Escrever("a Steam reiniciou; fechando a sessão para o agendador reabrir");
+                    discord?.Dispose();
+                    estado.Salvar();
+                    return SteamReiniciada;
                 }
                 discord?.Manter();
 

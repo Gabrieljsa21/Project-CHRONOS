@@ -96,9 +96,21 @@ namespace Chronos
             var caminho = Caminho(Appid);
             var temporario = caminho + ".tmp";
             File.WriteAllText(temporario, JsonSerializer.Serialize(this, Config.Json), new UTF8Encoding(false));
-            // Troca atômica: uma sessão encerrada no meio da gravação nunca deixa o arquivo pela metade
-            if (File.Exists(caminho)) File.Replace(temporario, caminho, null);
-            else File.Move(temporario, caminho);
+            // Troca atômica: uma sessão encerrada no meio da gravação nunca deixa o arquivo pela metade.
+            // A troca falha enquanto a GAIA ou o agendador leem o arquivo
+            for (var tentativa = 0; ; tentativa++)
+            {
+                try
+                {
+                    if (File.Exists(caminho)) File.Replace(temporario, caminho, null);
+                    else File.Move(temporario, caminho);
+                    return;
+                }
+                catch (IOException) when (tentativa < 10)
+                {
+                    Thread.Sleep(200);
+                }
+            }
         }
     }
 }

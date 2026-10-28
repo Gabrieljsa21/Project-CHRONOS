@@ -9,7 +9,7 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>Chronos</AssemblyName>
     <RootNamespace>Chronos</RootNamespace>
-    <Version>0.8.1</Version>
+    <Version>0.8.2</Version>
     <SamDir Condition="'$(SamDir)' == ''">E:\Downloads\Jogos &amp; Steam\SteamAchievementManager-7.0.41</SamDir>
   </PropertyGroup>
 

@@ -4,6 +4,13 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-10-28
+
+### Corrigido
+
+- Depois que a Steam reiniciava, os jogos iam parando um a um e só voltavam quando o CHRONOS reiniciava (relato do usuário: "o chronos ta iniciado mas n parece ta ativo"). Em 2026-10-28 a Steam reiniciou às 10:20, e 14 das 17 sessões caíram nas horas seguintes. Uma sessão presa à Steam antiga cai com o código 1, o mesmo do "Finalizar tarefa", e o agendador pausava o jogo como se o usuário o tivesse encerrado. Agora o agendador guarda a Steam (`steam.exe`) aberta quando cada sessão começa. Se a sessão sai com o código 1 e a Steam mudou ou fechou, o jogo é reaberto em 5 min em vez de pausar. A sessão também confere a Steam a cada minuto: se ela reiniciou, salva o estado e sai com o código 6 para ser reaberta, sem esperar a próxima conquista.
+- A sessão caía com `IOException` ao gravar o estado quando o arquivo estava sendo lido no mesmo instante (o Cookie Clicker caiu às 13:16 e às 14:42). `EstadoJogo.Salvar` tenta a troca do arquivo até 10 vezes, com 200 ms de intervalo, como o `Carregar` já fazia.
+
 ## [0.8.1] - 2026-10-28
 
 ### Corrigido

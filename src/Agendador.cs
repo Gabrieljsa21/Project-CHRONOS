@@ -20,6 +20,8 @@ namespace Chronos
 
         private static readonly Dictionary<uint, Process> Sessoes = new Dictionary<uint, Process>();
         private static readonly Dictionary<uint, string> Nomes = new Dictionary<uint, string>();
+        // Steam aberta quando cada sessão começou: separa o "Finalizar tarefa" da Steam reiniciada
+        private static readonly Dictionary<uint, int> SteamDaSessao = new Dictionary<uint, int>();
         // Jogos cuja sessão foi encerrada por fora: ficam parados até o agendador reiniciar
         private static readonly HashSet<uint> Pausados = new HashSet<uint>();
         private static readonly Dictionary<uint, DateTime> BloqueadoAte = new Dictionary<uint, DateTime>();
@@ -81,6 +83,7 @@ namespace Chronos
                 Log.Escrever($"fechando sessão de {appid} (fora da janela ou fora da lista)");
                 try { Sessoes[appid].Kill(); } catch (InvalidOperationException) { }
                 Sessoes.Remove(appid);
+                SteamDaSessao.Remove(appid);
             }
 
             foreach (var appid in desejados.Where(a => !Sessoes.ContainsKey(a)))
@@ -138,6 +141,7 @@ namespace Chronos
                 CreateNoWindow = true,
             };
             Sessoes[appid] = Process.Start(info);
+            SteamDaSessao[appid] = SteamLocal.Pid();
             Log.Escrever($"sessão aberta para {appid}");
         }
 
@@ -147,7 +151,16 @@ namespace Chronos
             {
                 var codigo = par.Value.ExitCode;
                 Sessoes.Remove(par.Key);
-                if (codigo == CodigoEncerradaPorFora)
+                SteamDaSessao.TryGetValue(par.Key, out var steamAntes);
+                SteamDaSessao.Remove(par.Key);
+                // A sessão presa a uma Steam que reiniciou cai com o mesmo código 1
+                var steamReiniciou = codigo == CodigoEncerradaPorFora && (steamAntes == 0 || SteamLocal.Mudou(steamAntes));
+                if (steamReiniciou || codigo == Sessao.SteamReiniciada)
+                {
+                    Log.Escrever($"sessão de {par.Key} caiu porque a Steam reiniciou ou fechou (código {codigo}); nova tentativa em {EsperaAposFalhaSessao.TotalMinutes} min");
+                    BloqueadoAte[par.Key] = DateTime.Now + EsperaAposFalhaSessao;
+                }
+                else if (codigo == CodigoEncerradaPorFora)
                 {
                     Log.Escrever($"sessão de {par.Key} encerrada por fora (Gerenciador de Tarefas); parado até o CHRONOS reiniciar");
                     Pausados.Add(par.Key);
