@@ -4,6 +4,16 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-28
+
+### Adicionado
+
+- O agendador regrava `saude.json` a cada ciclo de 30 s, com a hora e a lista do que parou de funcionar (pedido do usuário: "tem q ter um ! ou algo na tela p indicar q tem algo errado, p mim saber qnd parou de funcionar algo"). Entram na lista: a Steam fechada; o jogo encerrado pelo Gerenciador de Tarefas, que fica parado até o CHRONOS reiniciar; a sessão que caiu 2 ou mais vezes seguidas, com o motivo da última queda; o jogo cujo plano de conquistas não montou; e o erro no ciclo do agendador. Uma queda isolada, como a da Steam reiniciada, não entra. A contagem zera quando a sessão fica 10 min de pé ou termina normalmente. A GAIA lê o arquivo e acende o "!" do indicador. Se o arquivo parar de ser atualizado, a GAIA conclui que o agendador travou.
+
+### Alterado
+
+- Entre dois desbloqueios, de qualquer jogo, passam de 1 a 2 min (pedido do usuário: "n quero q varias conquistas sejam habilitadas no msm minuto, pode por uma variação de 1~2min"). Cada sessão já soltava só uma por ciclo, mas as sessões não se coordenavam: às 16:30 de 2026-10-28, 14 sessões reabriram juntas com conquista vencida e soltaram 14 no mesmo minuto. Agora a sessão pede a vez antes de desbloquear (`Vez.Pegar`, mutex `Local\Project-CHRONOS-desbloqueio` e `proximo_desbloqueio.txt` com a hora em que a próxima fica liberada). Sem a vez, ela tenta no ciclo seguinte. Quando a conquista sai atrasada, as seguintes do mesmo jogo andam o mesmo tanto, como já acontecia depois de uma recusa.
+
 ## [0.8.2] - 2026-10-28
 
 ### Corrigido

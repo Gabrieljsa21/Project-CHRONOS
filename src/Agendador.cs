@@ -14,6 +14,10 @@ namespace Chronos
         private static readonly TimeSpan Ciclo = TimeSpan.FromSeconds(30);
         private static readonly TimeSpan EsperaAposFalhaSessao = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan EsperaAposFalhaPlano = TimeSpan.FromMinutes(30);
+        // Sessão que roda esse tempo sem cair zera a contagem de quedas seguidas
+        private static readonly TimeSpan SessaoEstavel = TimeSpan.FromMinutes(10);
+        // Uma queda isolada (Steam reiniciou) se resolve sozinha; a partir da 2ª seguida vira aviso
+        private const int QuedasParaAvisar = 2;
 
         // "Finalizar tarefa" do Gerenciador de Tarefas encerra o processo com código 1
         private const int CodigoEncerradaPorFora = 1;
@@ -27,6 +31,11 @@ namespace Chronos
         private static readonly Dictionary<uint, DateTime> BloqueadoAte = new Dictionary<uint, DateTime>();
         // Separado do bloqueio de sessão: jogo sem plano ainda pode ficar aberto com manter_aberto
         private static readonly Dictionary<uint, DateTime> PlanoBloqueadoAte = new Dictionary<uint, DateTime>();
+        // Para o saude.json: quedas seguidas de cada sessão, com o motivo da última, e a falha do plano
+        private static readonly Dictionary<uint, DateTime> AbertaEm = new Dictionary<uint, DateTime>();
+        private static readonly Dictionary<uint, int> QuedasSeguidas = new Dictionary<uint, int>();
+        private static readonly Dictionary<uint, string> MotivoQueda = new Dictionary<uint, string>();
+        private static readonly Dictionary<uint, string> MotivoPlano = new Dictionary<uint, string>();
         private static readonly string[] CodigosDias = { "dom", "seg", "ter", "qua", "qui", "sex", "sab" };
 
         public static int Executar()
@@ -45,11 +54,14 @@ namespace Chronos
                 {
                     try
                     {
-                        Ciclar(Config.Carregar(), rng);
+                        var cfg = Config.Carregar();
+                        Ciclar(cfg, rng);
+                        Saude.Gravar(Problemas(cfg));
                     }
                     catch (Exception e)
                     {
                         Log.Escrever($"erro no ciclo: {e}");
+                        Saude.Gravar(new[] { $"Erro no agendador: {e.Message}" });
                     }
                     Thread.Sleep(Ciclo);
                 }
@@ -84,11 +96,57 @@ namespace Chronos
                 try { Sessoes[appid].Kill(); } catch (InvalidOperationException) { }
                 Sessoes.Remove(appid);
                 SteamDaSessao.Remove(appid);
+                AbertaEm.Remove(appid);
             }
 
             foreach (var appid in desejados.Where(a => !Sessoes.ContainsKey(a)))
             {
                 AbrirSessao(appid);
+            }
+
+            foreach (var appid in AbertaEm.Where(p => DateTime.Now - p.Value >= SessaoEstavel).Select(p => p.Key).ToList())
+            {
+                QuedasSeguidas.Remove(appid);
+            }
+        }
+
+        private static List<string> Problemas(Config cfg)
+        {
+            var problemas = new List<string>();
+            var naFila = new HashSet<uint>(cfg.Jogos.Select(j => j.Appid));
+            string Nome(uint appid) => Nomes.TryGetValue(appid, out var nome) ? nome : appid.ToString();
+
+            // Steam fechada derruba todas as sessões; o aviso dela basta
+            var steamAberta = SteamLocal.Pid() != 0;
+            if (!steamAberta) problemas.Add("Steam fechada: nenhum jogo consegue abrir");
+            foreach (var appid in Pausados.Where(naFila.Contains))
+            {
+                problemas.Add($"{Nome(appid)}: encerrado por fora (Gerenciador de Tarefas); volta quando o CHRONOS reiniciar");
+            }
+            if (steamAberta)
+            {
+                foreach (var par in QuedasSeguidas.Where(p => p.Value >= QuedasParaAvisar && naFila.Contains(p.Key)))
+                {
+                    problemas.Add($"{Nome(par.Key)}: a sessão caiu {par.Value} vezes seguidas ({MotivoQueda[par.Key]})");
+                }
+            }
+            foreach (var par in PlanoBloqueadoAte.Where(p => DateTime.Now < p.Value && naFila.Contains(p.Key)))
+            {
+                problemas.Add($"{Nome(par.Key)}: não foi possível montar o plano de conquistas ({MotivoPlano[par.Key]})");
+            }
+            return problemas;
+        }
+
+        private static string Motivo(int codigo)
+        {
+            switch (codigo)
+            {
+                case CodigoEncerradaPorFora:
+                case Sessao.SteamReiniciada: return "a Steam reiniciou ou fechou";
+                case Sessao.SemEstado: return "sem plano de conquistas";
+                case Sessao.FalhaSteam: return "não conectou na Steam";
+                case Sessao.FalhaStats: return "a Steam não devolveu as estatísticas";
+                default: return $"código {codigo}";
             }
         }
 
@@ -127,6 +185,7 @@ namespace Chronos
             {
                 Log.Escrever($"não foi possível planejar {jogo.Appid}: {e.Message}");
                 PlanoBloqueadoAte[jogo.Appid] = DateTime.Now + EsperaAposFalhaPlano;
+                MotivoPlano[jogo.Appid] = e.Message;
                 return null;
             }
         }
@@ -142,6 +201,7 @@ namespace Chronos
             };
             Sessoes[appid] = Process.Start(info);
             SteamDaSessao[appid] = SteamLocal.Pid();
+            AbertaEm[appid] = DateTime.Now;
             Log.Escrever($"sessão aberta para {appid}");
         }
 
@@ -153,8 +213,18 @@ namespace Chronos
                 Sessoes.Remove(par.Key);
                 SteamDaSessao.TryGetValue(par.Key, out var steamAntes);
                 SteamDaSessao.Remove(par.Key);
+                AbertaEm.Remove(par.Key);
                 // A sessão presa a uma Steam que reiniciou cai com o mesmo código 1
                 var steamReiniciou = codigo == CodigoEncerradaPorFora && (steamAntes == 0 || SteamLocal.Mudou(steamAntes));
+                if (codigo == Sessao.Ok)
+                {
+                    QuedasSeguidas.Remove(par.Key);
+                }
+                else if (codigo != CodigoEncerradaPorFora || steamReiniciou)
+                {
+                    QuedasSeguidas[par.Key] = (QuedasSeguidas.TryGetValue(par.Key, out var quedas) ? quedas : 0) + 1;
+                    MotivoQueda[par.Key] = Motivo(codigo);
+                }
                 if (steamReiniciou || codigo == Sessao.SteamReiniciada)
                 {
                     Log.Escrever($"sessão de {par.Key} caiu porque a Steam reiniciou ou fechou (código {codigo}); nova tentativa em {EsperaAposFalhaSessao.TotalMinutes} min");
