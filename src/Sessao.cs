@@ -80,11 +80,19 @@ namespace Chronos
             }
 
             Sincronizar(cliente, estado, cfg.Simulacao);
-            if (!estado.Sincronizado)
+            // Refaz na primeira sessão, nos planos sem as horas da Steam (0.7.0 e anteriores) e
+            // quando a duracao_horas do config.json muda
+            var jogo = cfg.Jogos.FirstOrDefault(j => j.Appid == appid);
+            var total = Planejador.DuracaoAtual(estado, jogo, cfg);
+            if (!estado.Sincronizado || estado.MinutosSteam == null || Math.Abs(total - estado.DuracaoTotalMinutos) >= 1)
             {
+                // Sem o localconfig.vdf fica 0, para não refazer o cronograma em toda sessão
+                estado.MinutosSteam = TempoSteam.Minutos(appid) ?? 0;
+                estado.MinutosJogados = Math.Max(estado.MinutosJogados, estado.MinutosSteam.Value);
+                estado.DuracaoTotalMinutos = total;
                 Planejador.Replanejar(estado, cfg, new Random());
                 estado.Sincronizado = true;
-                Log.Escrever($"cronograma refeito com as {estado.Pendentes.Count()} pendentes: {estado.DuracaoMinutos / 60:F1} h no total");
+                Log.Escrever($"cronograma refeito com as {estado.Pendentes.Count()} pendentes: {estado.MinutosJogados / 60:F1} h jogadas (Steam: {estado.MinutosSteam / 60:F1} h), termina em {estado.DuracaoMinutos / 60:F1} h de {total / 60:F1} h do jogo");
             }
             estado.Salvar();
             Log.Escrever($"sessão iniciada: {estado.Nome}, {estado.MinutosJogados:F0}/{estado.DuracaoMinutos:F0} min, {estado.Pendentes.Count()} pendentes{(cfg.Simulacao ? " (simulação)" : "")}");
