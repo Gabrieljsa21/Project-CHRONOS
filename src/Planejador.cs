@@ -41,11 +41,46 @@ namespace Chronos
                 throw new InvalidOperationException($"nenhuma conquista obtível encontrada para o appid {jogo.Appid}");
             }
 
-            var horas = jogo.DuracaoHoras
-                ?? (medianaMinutos > 0 ? medianaMinutos.Value / 60.0 : cfg.DuracaoPadraoHoras);
-            estado.DuracaoMinutos = horas * 60.0 * cfg.FatorDuracao;
+            estado.DuracaoTotalMinutos = Duracao(jogo, medianaMinutos, cfg);
+            estado.DuracaoMinutos = estado.DuracaoTotalMinutos;
             DistribuirTempos(estado.Conquistas, estado.DuracaoMinutos, cfg, rng);
             return estado;
+        }
+
+        // duracao_horas do config.json vence a mediana do SteamHunters
+        private static double Duracao(JogoConfig jogo, double? medianaMinutos, Config cfg)
+        {
+            var horas = jogo?.DuracaoHoras
+                ?? (medianaMinutos > 0 ? medianaMinutos.Value / 60.0 : cfg.DuracaoPadraoHoras);
+            return horas * 60.0 * cfg.FatorDuracao;
+        }
+
+        // Duração atual do jogo para um plano que já existe: refaz a conta só quando o
+        // config.json manda (duracao_horas) ou quando o plano é anterior ao campo
+        internal static double DuracaoAtual(EstadoJogo estado, JogoConfig jogo, Config cfg)
+        {
+            if (jogo?.DuracaoHoras == null && estado.DuracaoTotalMinutos > 0) return estado.DuracaoTotalMinutos;
+
+            double? mediana = null;
+            if (jogo?.DuracaoHoras == null && estado.Fonte == "steamhunters")
+            {
+                try
+                {
+                    using (var app = BaixarJson($"https://steamhunters.com/api/apps/{estado.Appid}"))
+                    {
+                        if (app.RootElement.TryGetProperty("medianCompletionTime", out var m) && m.ValueKind == JsonValueKind.Number)
+                        {
+                            mediana = m.GetDouble();
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Escrever($"SteamHunters indisponível para {estado.Appid} ({e.Message}); duração atual mantida");
+                    return estado.DuracaoMinutos;
+                }
+            }
+            return Duracao(jogo, mediana, cfg);
         }
 
         // Retorna o tempo mediano para 100% em minutos
@@ -142,15 +177,17 @@ namespace Chronos
         }
 
         // Refaz o cronograma só com as pendentes, a partir do tempo já jogado. A duração restante
-        // é a fatia da duração total equivalente ao peso do que falta: quem já tinha as comuns
-        // não espera por elas de novo.
+        // é o que falta da duração total depois das horas já jogadas, nunca menos que a fatia
+        // equivalente ao peso das pendentes: quem já tinha as comuns não espera por elas de
+        // novo, e quem já passou da duração total ainda leva o tempo das raras.
         internal static void Replanejar(EstadoJogo estado, Config cfg, Random rng)
         {
             var pendentes = estado.Conquistas.Where(c => c.Situacao == Situacao.Pendente).ToList();
             if (pendentes.Count == 0) return;
+            var total = estado.DuracaoTotalMinutos > 0 ? estado.DuracaoTotalMinutos : estado.DuracaoMinutos;
             var pesoTotal = estado.Conquistas.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
             var pesoPendente = pendentes.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
-            var restante = estado.DuracaoMinutos * pesoPendente / pesoTotal;
+            var restante = Math.Max(total * pesoPendente / pesoTotal, total - estado.MinutosJogados);
 
             DistribuirTempos(pendentes, restante, cfg, rng);
             foreach (var c in pendentes) c.Minuto = Math.Round(c.Minuto + estado.MinutosJogados, 1);

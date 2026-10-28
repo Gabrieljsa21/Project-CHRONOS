@@ -4,6 +4,13 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-28
+
+### Adicionado
+
+- O cronograma conta as horas que a Steam já registrou para o jogo (pergunta do usuário: "o chronos n considera qnts horas ja joguei e a qnt de conquistas q ja desbloqueei? E o cookie clicer deveria pedir umas 2k horas p platinar, pq ta so 50?"). As conquistas que a conta já tinha já saíam do cronograma; as horas, não. A sessão lê o `Playtime` do `localconfig.vdf` da conta logada (`TempoSteam`), grava em `minutos_steam` e começa o relógio dali. As pendentes ocupam o que falta da duração total depois dessas horas, nunca menos que a fatia de peso delas, que era a única regra até a 0.7.0. No Cookie Clicker (596 de 637 conquistas, 1.457 h na Steam), as 39 pendentes ficaram com 50 h porque a mediana do SteamHunters é 260 h, puxada para baixo por quem usa o SAM; com `duracao_horas: 2000`, passam a 543 h.
+- Mudar `duracao_horas` de um jogo no `config.json` refaz o cronograma na próxima sessão; antes só valia para planos novos. O estado guarda a duração do jogo inteiro em `duracao_total_minutos`. Planos da 0.7.0 e anteriores são refeitos uma vez, com a duração total buscada de novo no SteamHunters.
+
 ## [0.7.0] - 2026-10-27
 
 ### Adicionado

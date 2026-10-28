@@ -42,7 +42,13 @@ namespace Chronos
         public string Nome { get; set; }
         public string Fonte { get; set; }
         public double DuracaoMinutos { get; set; }
+        // Duração do jogo inteiro, do zero ao 100%; DuracaoMinutos é onde o cronograma termina.
+        // 0 nos planos da 0.7.0 e anteriores, que a recalculam na próxima sessão
+        public double DuracaoTotalMinutos { get; set; }
         public double MinutosJogados { get; set; }
+        // Horas que a Steam tinha registrado quando o cronograma foi refeito; null nos planos
+        // da 0.7.0 e anteriores, que são refeitos uma vez para contar essas horas
+        public double? MinutosSteam { get; set; }
         public DateTime CriadoEm { get; set; }
         // Falso até a primeira sessão conferir com a Steam o que o usuário já tinha e refazer
         // o cronograma só com o que falta
