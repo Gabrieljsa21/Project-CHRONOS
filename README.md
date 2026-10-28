@@ -7,7 +7,7 @@ Desbloqueia conquistas da Steam aos poucos, sem interação, num ritmo parecido 
 1. Você lista os jogos no `config.json`.
 2. Para cada jogo, o Chronos monta um cronograma com dados públicos do [SteamHunters](https://steamhunters.com):
    - **duração total:** o tempo mediano para 100% do jogo (sem esse dado, usa `duracao_padrao_horas`, 50 h); `duracao_horas` no jogo do `config.json` vence a mediana, e mudar o valor refaz o cronograma na próxima sessão;
-   - **o que você já fez:** as conquistas que a conta já tem saem do cronograma, e as horas que a Steam já registrou para o jogo contam como jogadas; as pendentes ocupam o que falta da duração total, nunca menos que a fatia de tempo delas (quem já passou da mediana ainda leva o tempo das raras);
+   - **o que você já fez:** as conquistas que a conta já tem saem do cronograma, e as horas que a Steam já registrou para o jogo contam como jogadas; o plano termina na duração total, e as pendentes ocupam o que falta dela (quem já passou da duração total recebe só os intervalos entre as conquistas);
    - **ordem:** da conquista mais comum para a mais rara;
    - **momento de cada uma:** proporcional à raridade, em escala logarítmica, com variação aleatória;
    - conquistas marcadas como impossíveis de obter ficam de fora.

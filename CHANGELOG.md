@@ -4,6 +4,12 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-28
+
+### Corrigido
+
+- O plano passava da duração total do jogo (relato do usuário: "O do how to train msm, mediana dele é 113, e vou jogar 159, ta muito acima"). A 0.8.0 dava às pendentes o maior entre o que faltava da duração total e a fatia de peso delas. Perto da mediana, a fatia de peso das raras vencia. Agora o plano termina na duração total: as pendentes ocupam o que falta dela depois das horas da Steam. Quem já passou da duração total recebe só os intervalos de 15 a 30 min entre as conquistas. A fatia de peso continua só para jogo sem horas registradas. Os planos refeitos pela 0.8.0 foram refeitos de novo (`minutos_steam` apagado do estado).
+
 ## [0.8.0] - 2026-10-28
 
 ### Adicionado
