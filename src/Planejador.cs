@@ -176,10 +176,11 @@ namespace Chronos
             }
         }
 
-        // Refaz o cronograma só com as pendentes, a partir do tempo já jogado. A duração restante
-        // é o que falta da duração total depois das horas já jogadas, nunca menos que a fatia
-        // equivalente ao peso das pendentes: quem já tinha as comuns não espera por elas de
-        // novo, e quem já passou da duração total ainda leva o tempo das raras.
+        // Refaz o cronograma só com as pendentes, a partir do tempo já jogado. O plano termina na
+        // duração total: a duração restante é o que falta dela depois das horas já jogadas, e
+        // quem já passou da duração total recebe só os espaços entre as conquistas. Sem horas
+        // jogadas (Steam sem registro), fica a fatia equivalente ao peso das pendentes, para quem
+        // já tinha as comuns não esperar por elas de novo.
         internal static void Replanejar(EstadoJogo estado, Config cfg, Random rng)
         {
             var pendentes = estado.Conquistas.Where(c => c.Situacao == Situacao.Pendente).ToList();
@@ -187,11 +188,14 @@ namespace Chronos
             var total = estado.DuracaoTotalMinutos > 0 ? estado.DuracaoTotalMinutos : estado.DuracaoMinutos;
             var pesoTotal = estado.Conquistas.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
             var pesoPendente = pendentes.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
-            var restante = Math.Max(total * pesoPendente / pesoTotal, total - estado.MinutosJogados);
+            var restante = estado.MinutosJogados > 0
+                ? Math.Max(0.0, total - estado.MinutosJogados)
+                : total * pesoPendente / pesoTotal;
 
             DistribuirTempos(pendentes, restante, cfg, rng);
             foreach (var c in pendentes) c.Minuto = Math.Round(c.Minuto + estado.MinutosJogados, 1);
-            estado.DuracaoMinutos = estado.MinutosJogados + restante;
+            // Com a duração toda gasta, os espaços sorteados passam do total
+            estado.DuracaoMinutos = Math.Max(estado.MinutosJogados + restante, pendentes.Max(c => c.Minuto));
         }
 
         private static double Dificuldade(double porcentagem) =>
