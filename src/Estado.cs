@@ -54,6 +54,9 @@ namespace Chronos
         // o cronograma só com o que falta
         public bool Sincronizado { get; set; }
         public List<Conquista> Conquistas { get; set; } = new List<Conquista>();
+        // apiName das conquistas do schema que o SteamHunters marca como impossíveis: ficam fora
+        // do plano e não contam como conquista nova do jogo
+        public List<string> Descartadas { get; set; } = new List<string>();
         // A Steam recusou a conquista ParadoNa (api_name) por 1 h: nada mais sai até --retomar
         public DateTime? ParadoEm { get; set; }
         public string ParadoNa { get; set; }

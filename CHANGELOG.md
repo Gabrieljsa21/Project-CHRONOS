@@ -4,6 +4,18 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-29
+
+### Adicionado
+
+- A sessão reconfere com a Steam as conquistas que o plano já dá como obtidas (`ja_tinha` e `desbloqueada`). A que foi removida da conta volta a pendente (pedido do usuário: "Removi as conquistas p adquiri-las novamente, o chronos vai pegar elas?"). Em 2026-10-29, o usuário trocou o save do Black Myth: Wukong por um 100% e abriu o jogo real, que soltou 8 conquistas em 19 s. Depois ele as removeu, mas o CHRONOS continuava com o jogo concluído. Antes, a sincronização só conferia pendentes, `sem_dlc` e recusadas.
+- Conquista que o jogo ganha depois do plano entra como pendente (pedido do usuário: "tem jogo q lança novas conquistas com o tempo tbm"). A lista vem do schema local da Steam (`EsquemaSteam.Conquistas`). O nome e a porcentagem vêm do SteamHunters ou, se ele ainda não tem a conquista, da Steam. As que o SteamHunters marca como impossíveis vão para `descartadas` no estado e não voltam a ser conferidas. Se o SteamHunters falhar num plano feito com ele, nada entra e a conferência seguinte tenta de novo.
+- A conferência roda no início de toda sessão e, num jogo concluído aberto só para contar horas (`manter_aberto`), a cada 30 min. Quando alguma conquista volta a pendente, o cronograma é refeito e a sessão reabre no modo normal.
+
+### Alterado
+
+- As conquistas que voltam a pendentes (removidas, novas ou de DLC que chegou) ganham pelo menos a fatia de peso delas na duração total do jogo, mesmo quando as horas jogadas já passaram dessa duração (pedido do usuário: "quero q tenha a diferença de horas"). Sem isso, elas teriam só os intervalos de 15 a 30 min. As 8 do Wukong ficam com cerca de 23 h. O replanejamento comum continua terminando na duração total, como na 0.8.1.
+
 ## [0.9.0] - 2026-10-28
 
 ### Adicionado

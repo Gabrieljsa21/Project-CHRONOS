@@ -46,7 +46,7 @@ O log fica em `%APPDATA%\Chronos\chronos.log` e o estado de cada jogo em `%APPDA
 
 ## Discord
 
-Com `"manter_aberto": true`, um jogo da lista que não tem mais conquistas a liberar (concluído, ou sem conquistas na Steam) continua aberto na Steam só para contar horas, como o ArchiSteamFarm faz. Os jogos com conquistas a liberar têm prioridade nas vagas de `jogos_simultaneos`. Esses jogos não aparecem como "Jogando" no Discord. Se um jogo sem conquistas ganhar conquistas, a sessão reabre no modo normal.
+Com `"manter_aberto": true`, um jogo da lista que não tem mais conquistas a liberar (concluído, ou sem conquistas na Steam) continua aberto na Steam só para contar horas, como o ArchiSteamFarm faz. Os jogos com conquistas a liberar têm prioridade nas vagas de `jogos_simultaneos`. Esses jogos não aparecem como "Jogando" no Discord. Se um jogo sem conquistas ganhar conquistas, a sessão reabre no modo normal. A cada 30 min, a sessão de um jogo concluído confere com a Steam se alguma conquista foi removida da conta (por exemplo, pelo SAM, para o CHRONOS soltá-la de novo) ou se o jogo lançou conquistas novas. Nos dois casos, o jogo volta para a fila e essas conquistas saem com horas de intervalo.
 
 Cada jogo roda num processo próprio, com o mesmo nome do executável que a Steam abre para ele (por exemplo `My Sexy Neighbour 2.exe` ou `EdgeOfEternity.exe`), e aparece assim no Gerenciador de Tarefas. A cópia fica em `bin\Release\net48\sessoes\<appid>\`. Para parar um jogo só por um tempo, use "Finalizar tarefa" nele: os outros continuam, e esse jogo fica parado até o CHRONOS reiniciar (Parar e Iniciar na bandeja da GAIA). Se o jogo de verdade também estiver aberto, os dois aparecem com o mesmo nome; o do CHRONOS é o de "32 bits" quando o jogo é de 64.
 

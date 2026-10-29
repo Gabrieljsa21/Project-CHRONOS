@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -22,6 +23,9 @@ namespace Chronos
         private static readonly TimeSpan EsperaAposFalha = TimeSpan.FromMinutes(15);
         private static readonly TimeSpan TempoMaximoRecusando = TimeSpan.FromHours(1);
         private const double MaximoMinutosPorCiclo = 2.0;
+        // Jogo concluído aberto só para contar horas confere com a Steam se alguma conquista
+        // foi removida da conta ou se o jogo ganhou conquistas novas
+        private static readonly TimeSpan IntervaloConferencia = TimeSpan.FromMinutes(30);
 
         // Instância da Steam a que a sessão se conectou; se ela reiniciar, a conexão fica morta
         private static int pidSteam;
@@ -59,12 +63,30 @@ namespace Chronos
 
                 // Só conta horas: a Steam mostra o jogo aberto enquanto o processo estiver conectado
                 Log.Escrever($"aberto só para contar horas ({(estado == null ? "sem plano de conquistas" : "conquistas concluídas")})");
+                var proximaConferencia = DateTime.MinValue;
                 while (Aguardar(cliente, pidPai, TimeSpan.FromSeconds(60)))
                 {
                     if (SteamLocal.Mudou(pidSteam))
                     {
                         Log.Escrever("a Steam reiniciou; fechando a sessão para o agendador reabrir");
                         return SteamReiniciada;
+                    }
+                    // Conquista removida da conta ou nova no jogo reabre o plano de um concluído
+                    if (estado != null && DateTime.Now >= proximaConferencia)
+                    {
+                        proximaConferencia = DateTime.Now + IntervaloConferencia;
+                        var conferido = EstadoJogo.Carregar(appid);
+                        if (conferido != null && ReceberStats(cliente, appid))
+                        {
+                            if (Conferir(cliente, conferido, cfg.Simulacao))
+                            {
+                                Replanejar(conferido, cfg, conferido.DuracaoTotalMinutos, true);
+                                conferido.Salvar();
+                                Log.Escrever("conquistas voltaram a pendentes; reabrindo a sessão");
+                                return Ok;
+                            }
+                            conferido.Salvar();
+                        }
                     }
                     // Plano criado depois (o jogo ganhou conquistas): o agendador reabre no modo normal
                     var atual = EstadoJogo.Carregar(appid);
@@ -89,20 +111,14 @@ namespace Chronos
                 return FalhaStats;
             }
 
-            Sincronizar(cliente, estado, cfg.Simulacao);
-            // Refaz na primeira sessão, nos planos sem as horas da Steam (0.7.0 e anteriores) e
-            // quando a duracao_horas do config.json muda
+            var voltaram = Conferir(cliente, estado, cfg.Simulacao);
+            // Refaz na primeira sessão, nos planos sem as horas da Steam (0.7.0 e anteriores),
+            // quando a duracao_horas do config.json muda e quando conquistas voltaram a pendentes
             var jogo = cfg.Jogos.FirstOrDefault(j => j.Appid == appid);
             var total = Planejador.DuracaoAtual(estado, jogo, cfg);
-            if (!estado.Sincronizado || estado.MinutosSteam == null || Math.Abs(total - estado.DuracaoTotalMinutos) >= 1)
+            if (!estado.Sincronizado || estado.MinutosSteam == null || Math.Abs(total - estado.DuracaoTotalMinutos) >= 1 || voltaram)
             {
-                // Sem o localconfig.vdf fica 0, para não refazer o cronograma em toda sessão
-                estado.MinutosSteam = TempoSteam.Minutos(appid) ?? 0;
-                estado.MinutosJogados = Math.Max(estado.MinutosJogados, estado.MinutosSteam.Value);
-                estado.DuracaoTotalMinutos = total;
-                Planejador.Replanejar(estado, cfg, new Random());
-                estado.Sincronizado = true;
-                Log.Escrever($"cronograma refeito com as {estado.Pendentes.Count()} pendentes: {estado.MinutosJogados / 60:F1} h jogadas (Steam: {estado.MinutosSteam / 60:F1} h), termina em {estado.DuracaoMinutos / 60:F1} h de {total / 60:F1} h do jogo");
+                Replanejar(estado, cfg, total, voltaram);
             }
             estado.Salvar();
             Log.Escrever($"sessão iniciada: {estado.Nome}, {estado.MinutosJogados:F0}/{estado.DuracaoMinutos:F0} min, {estado.Pendentes.Count()} pendentes{(cfg.Simulacao ? " (simulação)" : "")}");
@@ -169,6 +185,62 @@ namespace Chronos
             discord?.Dispose();
             if (!estado.Parado) Log.Escrever($"{estado.Nome} concluído");
             return Ok;
+        }
+
+        private static void Replanejar(EstadoJogo estado, Config cfg, double total, bool fatiaMinima)
+        {
+            // Sem o localconfig.vdf fica 0, para não refazer o cronograma em toda sessão
+            estado.MinutosSteam = TempoSteam.Minutos(estado.Appid) ?? 0;
+            estado.MinutosJogados = Math.Max(estado.MinutosJogados, estado.MinutosSteam.Value);
+            estado.DuracaoTotalMinutos = total;
+            Planejador.Replanejar(estado, cfg, new Random(), fatiaMinima);
+            estado.Sincronizado = true;
+            Log.Escrever($"cronograma refeito com as {estado.Pendentes.Count()} pendentes: {estado.MinutosJogados / 60:F1} h jogadas (Steam: {estado.MinutosSteam / 60:F1} h), termina em {estado.DuracaoMinutos / 60:F1} h de {total / 60:F1} h do jogo");
+        }
+
+        // Reconfere o plano com a Steam e sincroniza. Verdadeiro se há mais pendentes que antes
+        // (conquista removida da conta, nova no jogo ou de DLC que chegou)
+        private static bool Conferir(SAM.API.Client cliente, EstadoJogo estado, bool simulacao)
+        {
+            var antes = estado.Pendentes.Count();
+            Reabrir(cliente, estado);
+            Sincronizar(cliente, estado, simulacao);
+            return estado.Pendentes.Count() > antes;
+        }
+
+        // Conquista que a conta tinha e perdeu (o usuário a removeu, ex.: pelo SAM) volta a
+        // pendente, e conquista que o jogo ganhou depois do plano entra como pendente; a
+        // Sincronizar marca a que o usuário já tem e a de DLC que falta. As desbloqueadas só em
+        // simulação ficam de fora: na Steam elas nunca existiram.
+        private static void Reabrir(SAM.API.Client cliente, EstadoJogo estado)
+        {
+            var stats = cliente.SteamUserStats;
+            var removidas = new List<string>();
+            foreach (var c in estado.Conquistas.Where(c => (c.Situacao == Situacao.Desbloqueada || c.Situacao == Situacao.JaTinha) && !c.Simulada))
+            {
+                if (!stats.GetAchievement(c.ApiName, out var tem) || tem) continue;
+                c.Situacao = Situacao.Pendente;
+                c.DesbloqueadaEm = null;
+                c.Falhas = 0;
+                removidas.Add(c.Nome);
+            }
+            if (removidas.Count > 0) Log.Escrever($"{removidas.Count} conquista(s) removida(s) da conta voltam a pendentes: {string.Join(", ", removidas)}");
+
+            try
+            {
+                var novas = Planejador.ConquistasNovas(estado, EsquemaSteam.Conquistas(estado.Appid));
+                foreach (var c in novas)
+                {
+                    var nome = stats.GetAchievementDisplayAttribute(c.ApiName, "name");
+                    if (!string.IsNullOrEmpty(nome)) c.Nome = nome;
+                    estado.Conquistas.Add(c);
+                }
+                if (novas.Count > 0) Log.Escrever($"{novas.Count} conquista(s) nova(s) no jogo entram no plano: {string.Join(", ", novas.Select(c => c.Nome))}");
+            }
+            catch (Exception e)
+            {
+                Log.Escrever($"não deu para conferir conquistas novas ({e.Message}); nova tentativa na próxima conferência");
+            }
         }
 
         private static bool ReceberStats(SAM.API.Client cliente, uint appid)
