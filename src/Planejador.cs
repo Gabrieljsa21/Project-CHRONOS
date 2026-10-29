@@ -136,6 +136,70 @@ namespace Chronos
             if (string.IsNullOrEmpty(estado.Nome)) estado.Nome = estado.Appid.ToString();
         }
 
+        // Conquistas do schema que o plano não conhece (o jogo ganhou depois). As que o
+        // SteamHunters marca como impossíveis vão para Descartadas. A porcentagem vem do
+        // SteamHunters ou, se ele ainda não tem a conquista, da Steam; sem nenhuma das duas, fica
+        // a menor do plano. Lança exceção se o SteamHunters falhar num plano feito com ele, para
+        // nenhuma impossível entrar: a sessão tenta de novo na próxima conferência.
+        internal static List<Conquista> ConquistasNovas(EstadoJogo estado, List<string> doSchema)
+        {
+            var conhecidas = new HashSet<string>(estado.Conquistas.Select(c => c.ApiName).Concat(estado.Descartadas));
+            var faltando = doSchema.Where(api => !conhecidas.Contains(api)).Distinct().ToList();
+            var novas = new List<Conquista>();
+            if (faltando.Count == 0) return novas;
+
+            var doHunters = new Dictionary<string, JsonElement>();
+            JsonDocument lista = null;
+            if (estado.Fonte == "steamhunters")
+            {
+                lista = BaixarJson($"https://steamhunters.com/api/apps/{estado.Appid}/achievements");
+                foreach (var item in lista.RootElement.EnumerateArray()) doHunters[item.GetProperty("apiName").GetString()] = item;
+            }
+            using (lista)
+            {
+                Dictionary<string, double> daSteam = null;
+                foreach (var api in faltando)
+                {
+                    var conquista = new Conquista { ApiName = api, Nome = api };
+                    if (doHunters.TryGetValue(api, out var item))
+                    {
+                        if (item.TryGetProperty("obtainability", out var obt) && obt.GetInt32() != 0)
+                        {
+                            estado.Descartadas.Add(api);
+                            continue;
+                        }
+                        conquista.Nome = item.GetProperty("name").GetString();
+                        conquista.Porcentagem = item.GetProperty("steamPercentage").GetDouble();
+                    }
+                    else
+                    {
+                        daSteam = daSteam ?? PorcentagensSteam(estado.Appid);
+                        conquista.Porcentagem = daSteam.TryGetValue(api, out var p)
+                            ? p
+                            : estado.Conquistas.Select(c => c.Porcentagem).DefaultIfEmpty(10.0).Min();
+                    }
+                    novas.Add(conquista);
+                }
+            }
+            return novas;
+        }
+
+        private static Dictionary<string, double> PorcentagensSteam(uint appid)
+        {
+            var resultado = new Dictionary<string, double>();
+            try
+            {
+                var temp = new EstadoJogo { Appid = appid, Nome = "-" };
+                CarregarSteam(temp);
+                foreach (var c in temp.Conquistas) resultado[c.ApiName] = c.Porcentagem;
+            }
+            catch (Exception e)
+            {
+                Log.Escrever($"porcentagens da Steam indisponíveis para {appid} ({e.Message})");
+            }
+            return resultado;
+        }
+
         private static JsonDocument BaixarJson(string url)
         {
             var resposta = Http.GetAsync(url).GetAwaiter().GetResult();
@@ -180,17 +244,20 @@ namespace Chronos
         // duração total: a duração restante é o que falta dela depois das horas já jogadas, e
         // quem já passou da duração total recebe só os espaços entre as conquistas. Sem horas
         // jogadas (Steam sem registro), fica a fatia equivalente ao peso das pendentes, para quem
-        // já tinha as comuns não esperar por elas de novo.
-        internal static void Replanejar(EstadoJogo estado, Config cfg, Random rng)
+        // já tinha as comuns não esperar por elas de novo. Com `fatiaMinima` (conquistas que
+        // voltaram a pendentes: removidas da conta ou novas no jogo), a fatia de peso vale também
+        // para quem já passou da duração total, para elas saírem com horas entre si.
+        internal static void Replanejar(EstadoJogo estado, Config cfg, Random rng, bool fatiaMinima = false)
         {
             var pendentes = estado.Conquistas.Where(c => c.Situacao == Situacao.Pendente).ToList();
             if (pendentes.Count == 0) return;
             var total = estado.DuracaoTotalMinutos > 0 ? estado.DuracaoTotalMinutos : estado.DuracaoMinutos;
             var pesoTotal = estado.Conquistas.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
             var pesoPendente = pendentes.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
+            var fatia = total * pesoPendente / pesoTotal;
             var restante = estado.MinutosJogados > 0
-                ? Math.Max(0.0, total - estado.MinutosJogados)
-                : total * pesoPendente / pesoTotal;
+                ? Math.Max(fatiaMinima ? fatia : 0.0, total - estado.MinutosJogados)
+                : fatia;
 
             DistribuirTempos(pendentes, restante, cfg, rng);
             foreach (var c in pendentes) c.Minuto = Math.Round(c.Minuto + estado.MinutosJogados, 1);

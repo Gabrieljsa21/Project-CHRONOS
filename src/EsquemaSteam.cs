@@ -17,16 +17,8 @@ namespace Chronos
         public static Dictionary<string, uint> ConquistasDeDlc(uint appid)
         {
             var resultado = new Dictionary<string, uint>();
-            var caminho = Path.Combine(PastaSteam() ?? "", "appcache", "stats", $"UserGameStatsSchema_{appid}.bin");
-            if (!File.Exists(caminho)) return resultado;
-
-            Dictionary<string, object> raiz;
-            using (var leitor = new BinaryReader(File.OpenRead(caminho)))
-            {
-                raiz = LerNo(leitor);
-            }
-            if (raiz.Count == 0) return resultado;
-            var jogo = PrimeiroFilho(raiz);
+            var jogo = LerJogo(appid);
+            if (jogo.Count == 0) return resultado;
 
             var dlcPorGrupo = new Dictionary<string, uint>();
             foreach (var grupo in Filhos(jogo, "groups"))
@@ -53,6 +45,35 @@ namespace Chronos
                 }
             }
             return resultado;
+        }
+
+        // apiName de todas as conquistas do schema, inclusive as que o jogo ganhou depois do
+        // plano. Vazio se o schema não está no disco
+        public static List<string> Conquistas(uint appid)
+        {
+            var resultado = new List<string>();
+            foreach (var stat in Filhos(LerJogo(appid), "stats"))
+            {
+                if (!(stat.Value is Dictionary<string, object> s)) continue;
+                foreach (var bit in Filhos(s, "bits"))
+                {
+                    if (bit.Value is Dictionary<string, object> b && b.TryGetValue("name", out var nome) && nome is string api)
+                    {
+                        resultado.Add(api);
+                    }
+                }
+            }
+            return resultado;
+        }
+
+        private static Dictionary<string, object> LerJogo(uint appid)
+        {
+            var caminho = Path.Combine(PastaSteam() ?? "", "appcache", "stats", $"UserGameStatsSchema_{appid}.bin");
+            if (!File.Exists(caminho)) return new Dictionary<string, object>();
+            using (var leitor = new BinaryReader(File.OpenRead(caminho)))
+            {
+                return PrimeiroFilho(LerNo(leitor));
+            }
         }
 
         internal static string PastaSteam()
