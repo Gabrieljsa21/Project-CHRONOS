@@ -41,28 +41,52 @@ namespace Chronos
                 throw new InvalidOperationException($"nenhuma conquista obtível encontrada para o appid {jogo.Appid}");
             }
 
-            estado.DuracaoTotalMinutos = Duracao(jogo, medianaMinutos, cfg);
+            var completo = true;
+            var tempos = new Dictionary<string, double>();
+            if (jogo?.DuracaoHoras == null) completo = Tempos(estado, medianaMinutos, tempos);
+            var (minutos, fonte) = Duracao(estado, jogo, tempos, cfg);
+            estado.DuracaoTotalMinutos = minutos;
+            // Com alguma fonte fora do ar fica null, e a próxima sessão consulta de novo
+            estado.FonteDuracao = completo ? fonte : null;
             estado.DuracaoMinutos = estado.DuracaoTotalMinutos;
             DistribuirTempos(estado.Conquistas, estado.DuracaoMinutos, cfg, rng);
             return estado;
         }
 
-        // duracao_horas do config.json vence a mediana do SteamHunters
-        private static double Duracao(JogoConfig jogo, double? medianaMinutos, Config cfg)
+        // duracao_horas do config.json vence as fontes. Com as três fontes, vale a mediana delas;
+        // com menos, a maior: a mediana do SteamHunters cai com quem libera tudo pelo SAM
+        // (Bitburner: 51 min no SteamHunters, 1.645 h no HowLongToBeat)
+        private static (double Minutos, string Fonte) Duracao(EstadoJogo estado, JogoConfig jogo, Dictionary<string, double> tempos, Config cfg)
         {
-            var horas = jogo?.DuracaoHoras
-                ?? (medianaMinutos > 0 ? medianaMinutos.Value / 60.0 : cfg.DuracaoPadraoHoras);
-            return horas * 60.0 * cfg.FatorDuracao;
+            if (jogo?.DuracaoHoras != null) return (jogo.DuracaoHoras.Value * 60.0 * cfg.FatorDuracao, "config");
+
+            estado.TemposFontes = tempos.ToDictionary(t => t.Key, t => Math.Round(t.Value / 60.0, 1));
+            var ordem = tempos.OrderBy(t => t.Value).ToList();
+            double minutos;
+            string fonte;
+            if (ordem.Count >= 3) { minutos = ordem[ordem.Count / 2].Value; fonte = "mediana"; }
+            else if (ordem.Count > 0) { minutos = ordem.Last().Value; fonte = ordem.Last().Key; }
+            else { minutos = cfg.DuracaoPadraoHoras * 60.0; fonte = "padrao"; }
+            var detalhe = tempos.Count == 0 ? "nenhuma fonte tem o jogo" : string.Join(", ", ordem.Select(t => $"{t.Key} {t.Value / 60:F1} h"));
+            Log.Escrever($"duração de {estado.Nome}: {detalhe}; vale {minutos / 60:F1} h ({fonte})");
+            return (minutos * cfg.FatorDuracao, fonte);
         }
 
-        // Duração atual do jogo para um plano que já existe: refaz a conta só quando o
-        // config.json manda (duracao_horas) ou quando o plano é anterior ao campo
+        // Duração atual do jogo para um plano que já existe: refaz a conta quando o config.json
+        // manda (duracao_horas), quando deixou de mandar e quando o plano ainda não consultou
+        // todas as fontes (anteriores à 0.11.0 ou com alguma fora do ar na última tentativa)
         internal static double DuracaoAtual(EstadoJogo estado, JogoConfig jogo, Config cfg)
         {
-            if (jogo?.DuracaoHoras == null && estado.DuracaoTotalMinutos > 0) return estado.DuracaoTotalMinutos;
+            if (jogo?.DuracaoHoras != null)
+            {
+                estado.FonteDuracao = "config";
+                return Duracao(estado, jogo, null, cfg).Minutos;
+            }
+            if (estado.DuracaoTotalMinutos > 0 && estado.FonteDuracao != null && estado.FonteDuracao != "config") return estado.DuracaoTotalMinutos;
 
+            var atual = estado.DuracaoTotalMinutos > 0 ? estado.DuracaoTotalMinutos : estado.DuracaoMinutos;
             double? mediana = null;
-            if (jogo?.DuracaoHoras == null && estado.Fonte == "steamhunters")
+            if (estado.Fonte == "steamhunters")
             {
                 try
                 {
@@ -77,10 +101,43 @@ namespace Chronos
                 catch (Exception e)
                 {
                     Log.Escrever($"SteamHunters indisponível para {estado.Appid} ({e.Message}); duração atual mantida");
-                    return estado.DuracaoMinutos;
+                    return atual;
                 }
             }
-            return Duracao(jogo, mediana, cfg);
+            var tempos = new Dictionary<string, double>();
+            if (!Tempos(estado, mediana, tempos)) return atual;
+
+            var (minutos, fonte) = Duracao(estado, jogo, tempos, cfg);
+            estado.FonteDuracao = fonte;
+            return minutos;
+        }
+
+        // Tempo de 100% em minutos de cada fonte que tem o jogo. Falso quando o HowLongToBeat ou
+        // o curador falharam (fonte fora do ar, ou plano feito só com a Steam, que ainda não
+        // sabe o nome do jogo e o recebe da sessão pelo schema)
+        private static bool Tempos(EstadoJogo estado, double? medianaSteamHunters, Dictionary<string, double> tempos)
+        {
+            if (medianaSteamHunters > 0) tempos["steamhunters"] = medianaSteamHunters.Value;
+            var completo = true;
+            if (estado.Nome == estado.Appid.ToString()) completo = false;
+            else completo &= Consultar("HowLongToBeat", estado, () => HowLongToBeat.Minutos100(estado.Appid, estado.Nome), "howlongtobeat", tempos);
+            completo &= Consultar("curador da Steam", estado, () => CuradorSteam.Minutos100(estado.Appid), "curador", tempos);
+            return completo;
+        }
+
+        private static bool Consultar(string nome, EstadoJogo estado, Func<double?> consulta, string chave, Dictionary<string, double> tempos)
+        {
+            try
+            {
+                var minutos = consulta();
+                if (minutos > 0) tempos[chave] = minutos.Value;
+                return true;
+            }
+            catch (Exception e)
+            {
+                Log.Escrever($"{nome} indisponível para {estado.Appid} ({e.Message}); nova consulta na próxima sessão");
+                return false;
+            }
         }
 
         // Retorna o tempo mediano para 100% em minutos

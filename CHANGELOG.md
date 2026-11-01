@@ -4,6 +4,14 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-01
+
+### Alterado
+
+- A duração total do jogo passa a ser conferida em três fontes (pedido do usuário: "quero q seja automatico e consiga validar o tempo em umas 3 fontes pelo menos"). Além da mediana do SteamHunters, entram o tempo de 100% do HowLongToBeat e o do curador Average Achievement Hunter da Steam. Com as três, vale a mediana delas; com uma ou duas, a maior. A mediana do SteamHunters cai com quem libera as conquistas pelo SAM: o Bitburner tinha 51 min de duração no SteamHunters, contra 1.645 h no HowLongToBeat (e um amigo do usuário passou de 1.500 h). A duração de cada fonte vai para o log, para o `--plano` e para o estado (`fonte_duracao`, `tempos_fontes`). `duracao_horas` no `config.json` continua vencendo as fontes.
+- Os planos atuais têm a duração refeita uma vez, na próxima sessão de cada jogo. Nos jogos em andamento, mudam mais: Bitburner (0,8 h para 1.646 h), Melvor Idle (513 h para 1.670 h), Desktop Fishing (868 h para 1.507 h), GWENT (169 h para 353 h) e Idle Wizard (2.113 h para 2.401 h). Se o HowLongToBeat ou o curador estiver fora do ar, a duração atual fica e a sessão seguinte tenta de novo.
+- Tirar a `duracao_horas` de um jogo no `config.json` agora volta a duração para a das fontes. Antes, o valor do config continuava guardado no plano.
+
 ## [0.10.0] - 2026-10-29
 
 ### Adicionado
