@@ -155,14 +155,23 @@ namespace Chronos
                 relogio.Restart();
                 estado.MinutosJogados += delta * acelerar;
 
-                // No máximo uma por ciclo, e de 1 a 2 min depois da última de qualquer jogo (Vez),
-                // para nunca sair um bloco de conquistas no mesmo instante
+                // Uma vez por ciclo, de 1 a 2 min depois da última de qualquer jogo (Vez). Plano
+                // espremido (conquistas marcadas a menos de 2 min uma da outra, como no GooCubelets)
+                // solta em rajada as que já venceram, como quem termina uma fase, senão o ritmo da
+                // Vez esticaria o plano; o plano normal (15 a 30 min) solta uma só
                 var proxima = estado.Pendentes.FirstOrDefault();
                 if (proxima != null && proxima.Minuto <= estado.MinutosJogados && DateTime.Now >= proximaTentativa && Vez.Pegar())
                 {
-                    if (Desbloquear(cliente, estado, proxima, cfg.Simulacao))
+                    var espremido = Espremido(estado);
+                    var rajada = Rajada(estado);
+                    if (Desbloquear(cliente, estado, proxima, cfg.Simulacao, ajustar: !espremido))
                     {
                         primeiraRecusa = null;
+                        foreach (var seguinte in rajada)
+                        {
+                            Thread.Sleep(TimeSpan.FromSeconds(3 + SorteioRajada.NextDouble() * 7));
+                            if (!Desbloquear(cliente, estado, seguinte, cfg.Simulacao, ajustar: false)) break;
+                        }
                     }
                     else
                     {
@@ -319,7 +328,36 @@ namespace Chronos
 
         // Verdadeiro se a Steam gravou. Com atraso (a fila ficou presa numa recusa), as seguintes
         // andam o mesmo tanto, para não saírem em bloco
-        private static bool Desbloquear(SAM.API.Client cliente, EstadoJogo estado, Conquista c, bool simulacao)
+        private const int MaximoRajada = 5;
+        private const double EspacoRajadaMinutos = 2.0;
+        private static readonly Random SorteioRajada = new Random();
+
+        // Próxima pendente marcada a menos de EspacoRajadaMinutos: o atraso da Vez não empurra o
+        // plano, que alcança o cronograma pelas rajadas
+        private static bool Espremido(EstadoJogo estado)
+        {
+            var duas = estado.Pendentes.Take(2).ToList();
+            return duas.Count == 2 && duas[1].Minuto - duas[0].Minuto < EspacoRajadaMinutos;
+        }
+
+        // Pendentes que saem junto com a primeira: já venceram e cada uma está marcada a menos de
+        // EspacoRajadaMinutos da anterior. Vazia no plano normal, de espaços de 15 a 30 min
+        private static List<Conquista> Rajada(EstadoJogo estado)
+        {
+            var fila = estado.Pendentes.ToList();
+            var rajada = new List<Conquista>();
+            for (var i = 1; i < fila.Count && rajada.Count < MaximoRajada - 1; i++)
+            {
+                var c = fila[i];
+                if (c.Minuto > estado.MinutosJogados || c.Minuto - fila[i - 1].Minuto >= EspacoRajadaMinutos) break;
+                rajada.Add(c);
+            }
+            return rajada;
+        }
+
+        // ajustar: empurra as seguintes pelo atraso desta. Desligado na rajada, que existe
+        // justamente para alcançar o plano
+        private static bool Desbloquear(SAM.API.Client cliente, EstadoJogo estado, Conquista c, bool simulacao, bool ajustar = true)
         {
             if (simulacao)
             {
@@ -343,7 +381,7 @@ namespace Chronos
             c.Falhas = 0;
             Log.Escrever($"desbloqueada '{c.Nome}' ({c.Porcentagem:F1}%) no minuto {c.Minuto:F0}");
             var atraso = estado.MinutosJogados - c.Minuto;
-            if (atraso > 1)
+            if (ajustar && atraso > 1)
             {
                 foreach (var seguinte in estado.Pendentes) seguinte.Minuto = Math.Round(seguinte.Minuto + atraso, 1);
             }

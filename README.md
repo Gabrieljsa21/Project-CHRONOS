@@ -7,7 +7,7 @@ Desbloqueia conquistas da Steam aos poucos, sem interação, num ritmo parecido 
 1. Você lista os jogos no `config.json`.
 2. Para cada jogo, o Chronos monta um cronograma com dados públicos do [SteamHunters](https://steamhunters.com):
    - **duração total:** o tempo de 100% do jogo, conferido em três fontes: a mediana do SteamHunters, o "Completionist" do [HowLongToBeat](https://howlongtobeat.com) e o "100% time" do curador [Average Achievement Hunter](https://store.steampowered.com/curator/30168383) na Steam. Vale sempre a maior, para uma fonte baixa demais nunca encurtar o plano (a mediana do SteamHunters cai com quem libera tudo pelo SAM). Sem nenhuma, usa `duracao_padrao_horas`, 50 h. `duracao_horas` no jogo do `config.json` vence as fontes, e mudar o valor refaz o cronograma na próxima sessão;
-   - **o que você já fez:** as conquistas que a conta já tem saem do cronograma, e as horas que a Steam já registrou para o jogo contam como jogadas; o plano termina na duração total, e as pendentes ocupam o que falta dela (quem já passou da duração total recebe só os intervalos entre as conquistas, encolhidos para 1 a 2 min);
+   - **o que você já fez:** as conquistas que a conta já tem saem do cronograma, e as horas que a Steam já registrou para o jogo contam como jogadas; o plano termina na duração total, e as pendentes ocupam o que falta dela (quem já passou da duração total recebe só os intervalos entre as conquistas; se nem eles cabem, como num jogo deixado aberto horas sem conquistas, as horas jogadas deixam de contar e as pendentes ganham a parte delas na duração a partir de agora);
    - **ordem:** da conquista mais comum para a mais rara;
    - **momento de cada uma:** proporcional à raridade, em escala logarítmica, com variação aleatória;
    - conquistas marcadas como impossíveis de obter ficam de fora.
@@ -54,7 +54,7 @@ Enquanto um jogo está aberto, o Discord mostra "Jogando <jogo>" com o ícone of
 
 ## Ordem e DLC
 
-- Quanto mais rara a conquista, mais demora: a espera até cada uma é um espaço sorteado entre `intervalo_minimo_minutos` e `intervalo_maximo_minutos` (15 e 30) mais uma fatia da duração proporcional à dificuldade. Quando os intervalos não cabem na duração (muitas conquistas para pouco tempo), eles encolhem na mesma proporção até o mínimo chegar a `intervalo_piso_minutos` (1 min), com o máximo no dobro. O intervalo entre duas conquistas varia, sem ritmo fixo; a ordem vai da mais comum para a mais rara (`desordem` acima de 0 embaralha um pouco, 0 por padrão).
+- Quanto mais rara a conquista, mais demora: a espera até cada uma é um espaço sorteado entre `intervalo_minimo_minutos` e `intervalo_maximo_minutos` (15 e 30) mais uma fatia da duração proporcional à dificuldade. Quando os intervalos não cabem na duração (muitas conquistas para pouco tempo), eles encolhem na mesma proporção até o mínimo chegar a `intervalo_piso_minutos` (0,5 min), com o máximo no dobro. Conquistas marcadas a menos de 2 min uma da outra saem em rajada (até 5, com 3 a 10 s entre elas), como quem termina uma fase. O intervalo entre duas conquistas varia, sem ritmo fixo; a ordem vai da mais comum para a mais rara (`desordem` acima de 0 embaralha um pouco, 0 por padrão).
 - Na primeira sessão, o cronograma é refeito só com as conquistas que faltam, a partir do ponto em que você está.
 - Conquistas de DLC que a conta (ou a família) não tem ficam de fora quando o jogo usa os Achievement Sets da Steam, que marcam a DLC de cada conquista. Em jogos que ainda não usam sets, a Steam não informa isso.
 

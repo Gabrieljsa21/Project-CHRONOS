@@ -327,6 +327,11 @@ namespace Chronos
             var restante = estado.MinutosJogados > 0
                 ? Math.Max(fatiaMinima ? fatia : 0.0, total - estado.MinutosJogados)
                 : fatia;
+            // Horas jogadas sem conquistas (jogo deixado aberto antes, como o GooCubelets com 8,1 h
+            // de 7,3 h e 362 de 367 pendentes): o que falta não cabe nem nos espaços, então as
+            // horas já jogadas deixam de contar e as pendentes ganham a fatia delas a partir de agora
+            var mediaEspacos = (cfg.IntervaloMinimoMinutos + cfg.IntervaloMaximoMinutos) / 2.0;
+            if (pendentes.Count * mediaEspacos > restante) restante = Math.Max(restante, fatia);
 
             DistribuirTempos(pendentes, restante, cfg, rng);
             foreach (var c in pendentes) c.Minuto = Math.Round(c.Minuto + estado.MinutosJogados, 1);
