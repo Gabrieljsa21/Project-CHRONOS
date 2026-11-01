@@ -44,6 +44,9 @@ namespace Chronos
         // Espaço entre duas conquistas seguidas: sorteado entre o mínimo e o máximo
         public double IntervaloMinimoMinutos { get; set; } = 15;
         public double IntervaloMaximoMinutos { get; set; } = 30;
+        // Quando os espaços não cabem na duração (muitas conquistas para pouco tempo), encolhem
+        // na mesma proporção até o mínimo chegar a este piso; o máximo fica no dobro
+        public double IntervaloPisoMinutos { get; set; } = 1;
         public List<Janela> Janelas { get; set; } = new List<Janela>();
         public List<JogoConfig> Jogos { get; set; } = new List<JogoConfig>();
 

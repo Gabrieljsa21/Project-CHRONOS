@@ -58,6 +58,9 @@ namespace Chronos
         // Falso até a primeira sessão conferir com a Steam o que o usuário já tinha e refazer
         // o cronograma só com o que falta
         public bool Sincronizado { get; set; }
+        // Falso nos planos da 0.11.1 e anteriores, feitos com os espaços sempre de 15 a 30 min;
+        // os que terminam depois da duração total são refeitos uma vez com os espaços encolhidos
+        public bool EspacosAjustados { get; set; }
         public List<Conquista> Conquistas { get; set; } = new List<Conquista>();
         // apiName das conquistas do schema que o SteamHunters marca como impossíveis: ficam fora
         // do plano e não contam como conquista nova do jogo

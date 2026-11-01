@@ -4,6 +4,13 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-01
+
+### Alterado
+
+- O intervalo entre conquistas encolhe quando não cabe na duração do jogo (pedido do usuário: "tem de corrigir, fazer algo entre a opcao 1 e 2"). O GooCubelets tem 367 conquistas e 7,3 h de duração (a maior entre o SteamHunters, com 5,4 h, e o HowLongToBeat, com 7,3 h), mas a Steam já registrava 8,1 h. Com isso, as 362 pendentes recebiam só os intervalos de 15 a 30 min, e o plano terminava em 143,9 h. Agora, quando o número de conquistas vezes a média do intervalo passa da duração disponível, o mínimo e o máximo encolhem na mesma proporção, sem que o mínimo fique abaixo de `intervalo_piso_minutos` (novo, 1 min por padrão) e com o máximo sempre no dobro do mínimo. O GooCubelets passa a terminar em cerca de 17 h (1 a 2 min entre conquistas) e o Balloon hater, em 19,4 h em vez de 34,7 h (3 a 6 min). Jogos cujos intervalos já cabem na duração não mudam. A opção vale para todos os jogos e fica no `config.json`.
+- Os planos já feitos que terminam depois da duração total são refeitos uma vez, na próxima sessão (`espacos_ajustados` no estado).
+
 ## [0.11.1] - 2026-11-01
 
 ### Alterado
