@@ -4,6 +4,14 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-01
+
+### Alterado
+
+- A espera até cada conquista passa a seguir a diferença de raridade para a anterior, e não mais a raridade da conquista sozinha (pedido do usuário: "se peguei uma com 90% dos jogadores tem e a proxima 85% tem, o tempo tem de ser menor doq se a proxima fosse 65%"). O peso de cada conquista é o salto `ln(100/p)^curva` desde a anterior, com o jogo inteiro em ordem. A conta parte da mais comum do jogo, porque a porcentagem dela mede quem nunca abriu o jogo. Antes, duas raras vizinhas (10% e 11%) esperavam horas entre si. No Budgie's Bug Shop, de 82,6% para 82,3% leva cerca de 4 min, e de 76,8% para 54,1%, cerca de 2 h.
+- O espaço de 15 a 30 min entre conquistas, pensado para jogos longos, passa a ter um teto: um quarto do tempo médio por conquista (`intervalo_fracao`, novo, 0,25), sem descer do piso de 0,5 min. Num jogo de 19 conquistas em 3,1 h, o espaço fica entre 1,6 e 3,3 min. Os jogos longos continuam nos 15 a 30 min. Na 0.12.0, o espaço só encolhia quando a soma dos espaços passava da duração.
+- Todos os planos são refeitos uma vez, na próxima sessão de cada jogo (`versao_plano` no estado, que substitui o `espacos_ajustados` da 0.12.0). O tempo total de cada jogo quase não muda. A exceção é o GooCubelets, que passa de cerca de 7,2 h para 4,5 h a partir de agora: as 5 conquistas que já estavam na conta (de 6,7% a 4,5%) cobrem 42% do salto de raridade do jogo, e quase todas as 362 pendentes estão entre 2,8% e 2,7%.
+
 ## [0.13.1] - 2026-11-01
 
 ### Alterado
