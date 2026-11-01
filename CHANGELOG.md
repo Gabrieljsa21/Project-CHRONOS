@@ -4,6 +4,17 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-01
+
+### Alterado
+
+- Jogo com horas jogadas, mas sem as conquistas correspondentes, termina perto da duração dele a partir de agora (pedido do usuário: "Se eles pedem 7h, tem de terminar proximo de 7h de agr em diante. Mmsm ja tendo passado 8h"). Quando nem os intervalos cabem no que resta da duração, as horas já jogadas deixam de contar, e as pendentes ganham a fatia de peso delas na duração. Na 0.12.0, o GooCubelets (8,1 h jogadas de 7,3 h, 362 de 367 pendentes) ainda ia até cerca de 20 h. Agora termina em cerca de 7,2 h a partir de agora. Mudam também o Balloon hater (18,3 h), o Bones and Coins (6,6 h), o Budgie's Bug Shop (2,5 h) e o Chef Knight (1,8 h). Isso vale para jogo novo que chega com muitas horas e nenhuma conquista. Os demais jogos não mudam.
+- O piso do intervalo (`intervalo_piso_minutos`) cai de 1 para 0,5 min.
+
+### Adicionado
+
+- Rajadas: num plano espremido (próxima conquista marcada a menos de 2 min), a sessão que pega a vez solta junto as que já venceram, até 5 e com 3 a 10 s entre elas, como quem termina uma fase. Antes saía uma por vez a cada 1 a 2 min, o que esticava o GooCubelets de 7,2 h para cerca de 12 h. Nesses planos, o atraso de um desbloqueio não empurra mais as seguintes. Planos com intervalos de 15 a 30 min continuam soltando uma por vez.
+
 ## [0.12.0] - 2026-11-01
 
 ### Alterado

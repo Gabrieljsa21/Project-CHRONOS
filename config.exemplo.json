@@ -36,7 +36,7 @@
   "intervalo_minimo_minutos": 15,
   "intervalo_maximo_minutos": 30,
   // Jogo com muitas conquistas para pouca duração: os espaços encolhem até este mínimo (máximo no dobro)
-  "intervalo_piso_minutos": 1,
+  "intervalo_piso_minutos": 0.5,
 
   // Horários em que os jogos ficam abertos. Lista vazia = sempre.
   // dias vazio = todos; códigos: dom, seg, ter, qua, qui, sex, sab. fim antes do início atravessa a meia-noite.
