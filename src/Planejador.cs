@@ -53,9 +53,9 @@ namespace Chronos
             return estado;
         }
 
-        // duracao_horas do config.json vence as fontes. Com as três fontes, vale a mediana delas;
-        // com menos, a maior: a mediana do SteamHunters cai com quem libera tudo pelo SAM
-        // (Bitburner: 51 min no SteamHunters, 1.645 h no HowLongToBeat)
+        // duracao_horas do config.json vence as fontes. Sem ela, vale sempre a maior: fonte baixa
+        // demais (SAM na mediana do SteamHunters, poucos registros no HowLongToBeat) nunca encurta
+        // o plano (Bitburner: 51 min no SteamHunters, 1.645 h no HowLongToBeat)
         private static (double Minutos, string Fonte) Duracao(EstadoJogo estado, JogoConfig jogo, Dictionary<string, double> tempos, Config cfg)
         {
             if (jogo?.DuracaoHoras != null) return (jogo.DuracaoHoras.Value * 60.0 * cfg.FatorDuracao, "config");
@@ -64,8 +64,7 @@ namespace Chronos
             var ordem = tempos.OrderBy(t => t.Value).ToList();
             double minutos;
             string fonte;
-            if (ordem.Count >= 3) { minutos = ordem[ordem.Count / 2].Value; fonte = "mediana"; }
-            else if (ordem.Count > 0) { minutos = ordem.Last().Value; fonte = ordem.Last().Key; }
+            if (ordem.Count > 0) { minutos = ordem.Last().Value; fonte = ordem.Last().Key; }
             else { minutos = cfg.DuracaoPadraoHoras * 60.0; fonte = "padrao"; }
             var detalhe = tempos.Count == 0 ? "nenhuma fonte tem o jogo" : string.Join(", ", ordem.Select(t => $"{t.Key} {t.Value / 60:F1} h"));
             Log.Escrever($"duração de {estado.Nome}: {detalhe}; vale {minutos / 60:F1} h ({fonte})");
@@ -74,7 +73,8 @@ namespace Chronos
 
         // Duração atual do jogo para um plano que já existe: refaz a conta quando o config.json
         // manda (duracao_horas), quando deixou de mandar e quando o plano ainda não consultou
-        // todas as fontes (anteriores à 0.11.0 ou com alguma fora do ar na última tentativa)
+        // todas as fontes (anteriores à 0.11.0 ou com alguma fora do ar na última tentativa) e
+        // quando a duração saiu da mediana da 0.11.0
         internal static double DuracaoAtual(EstadoJogo estado, JogoConfig jogo, Config cfg)
         {
             if (jogo?.DuracaoHoras != null)
@@ -82,7 +82,8 @@ namespace Chronos
                 estado.FonteDuracao = "config";
                 return Duracao(estado, jogo, null, cfg).Minutos;
             }
-            if (estado.DuracaoTotalMinutos > 0 && estado.FonteDuracao != null && estado.FonteDuracao != "config") return estado.DuracaoTotalMinutos;
+            if (estado.DuracaoTotalMinutos > 0 && estado.FonteDuracao != null && estado.FonteDuracao != "config"
+                && estado.FonteDuracao != "mediana") return estado.DuracaoTotalMinutos;
 
             var atual = estado.DuracaoTotalMinutos > 0 ? estado.DuracaoTotalMinutos : estado.DuracaoMinutos;
             double? mediana = null;
