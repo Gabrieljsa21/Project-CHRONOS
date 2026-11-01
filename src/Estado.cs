@@ -41,6 +41,11 @@ namespace Chronos
         public uint Appid { get; set; }
         public string Nome { get; set; }
         public string Fonte { get; set; }
+        // De onde veio a duração total: config, padrao, mediana (das três fontes) ou a fonte maior. null nos
+        // planos da 0.10.0 e anteriores e quando o HowLongToBeat falhou: a sessão refaz a conta
+        public string FonteDuracao { get; set; }
+        // Tempo de 100% em horas de cada fonte que tem o jogo (steamhunters, howlongtobeat, curador)
+        public Dictionary<string, double> TemposFontes { get; set; }
         public double DuracaoMinutos { get; set; }
         // Duração do jogo inteiro, do zero ao 100%; DuracaoMinutos é onde o cronograma termina.
         // 0 nos planos da 0.7.0 e anteriores, que a recalculam na próxima sessão

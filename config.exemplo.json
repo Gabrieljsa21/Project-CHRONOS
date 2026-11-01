@@ -17,10 +17,10 @@
   // jogos_simultaneos, depois dos jogos com conquistas. Sem "Jogando" no Discord.
   "manter_aberto": false,
 
-  // Multiplica a duração de cada jogo (0.5 = metade do tempo mediano de 100%)
+  // Multiplica a duração de cada jogo (0.5 = metade do tempo de 100%)
   "fator_duracao": 1.0,
 
-  // Usada quando o SteamHunters não tem o tempo mediano do jogo
+  // Usada quando nenhuma fonte (SteamHunters, HowLongToBeat, curador da Steam) tem o tempo de 100% do jogo
   "duracao_padrao_horas": 50,
 
   // Quanto a dificuldade pesa na espera: acima de 1, as raras demoram ainda mais que as comuns
@@ -43,7 +43,7 @@
   ],
 
   // appid: número na URL da loja (store.steampowered.com/app/<appid>)
-  // duracao_horas (opcional) sobrescreve o tempo do SteamHunters
+  // duracao_horas (opcional) sobrescreve o tempo de 100% das fontes
   "jogos": [
     { "appid": 620, "nome": "Portal 2" }
   ]

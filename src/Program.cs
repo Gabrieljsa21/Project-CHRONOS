@@ -138,6 +138,8 @@ namespace Chronos
             var jogo = cfg.Jogos.FirstOrDefault(j => j.Appid == appid) ?? new JogoConfig { Appid = appid };
             var estado = Planejador.Planejar(jogo, cfg, new Random());
             var semDlc = ConquistasSemDlc(appid);
+            var tempos = estado.TemposFontes == null || estado.TemposFontes.Count == 0 ? "nenhuma" : string.Join(", ", estado.TemposFontes.Select(t => $"{t.Key} {t.Value:F1} h"));
+            Console.WriteLine($"duração: {estado.FonteDuracao ?? "incompleta (fonte fora do ar)"}; fontes: {tempos}");
             Console.WriteLine($"{estado.Nome} ({appid}), fonte {estado.Fonte}: {estado.Conquistas.Count} conquistas em {Horas(estado.DuracaoMinutos)}{(semDlc.Count > 0 ? $", {semDlc.Count} de DLC que a conta não tem" : "")}");
             foreach (var c in estado.Conquistas.OrderBy(c => c.Minuto))
             {
