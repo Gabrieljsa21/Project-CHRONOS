@@ -50,6 +50,7 @@ namespace Chronos
             estado.FonteDuracao = completo ? fonte : null;
             estado.DuracaoMinutos = estado.DuracaoTotalMinutos;
             DistribuirTempos(estado.Conquistas, estado.DuracaoMinutos, cfg, rng);
+            estado.EspacosAjustados = true;
             return estado;
         }
 
@@ -285,6 +286,16 @@ namespace Chronos
             var pesos = dificuldade.Select(d => Peso(d, cfg)).ToList();
             var minimo = Math.Min(cfg.IntervaloMinimoMinutos, cfg.IntervaloMaximoMinutos);
             var maximo = Math.Max(cfg.IntervaloMinimoMinutos, cfg.IntervaloMaximoMinutos);
+            // Muitas conquistas para pouca duração (GooCubelets: 362 pendentes já fora das 7,3 h do
+            // jogo dariam 136 h só de espaços): o intervalo encolhe para caber, sem passar do piso
+            var media = (minimo + maximo) / 2.0;
+            if (n * media > duracaoMinutos && minimo > 0)
+            {
+                var piso = Math.Max(0.0, Math.Min(cfg.IntervaloPisoMinutos, minimo));
+                var fator = Math.Max(piso / minimo, duracaoMinutos / (n * media));
+                minimo *= fator;
+                maximo = Math.Max(maximo * fator, minimo * 2.0);
+            }
             var espacos = Enumerable.Range(0, n).Select(_ => minimo + rng.NextDouble() * (maximo - minimo)).ToList();
             // Duração curta demais para os espaços: sobra só o espaço sorteado
             var escala = Math.Max(0.0, duracaoMinutos - espacos.Sum()) / pesos.Sum();
@@ -319,6 +330,7 @@ namespace Chronos
 
             DistribuirTempos(pendentes, restante, cfg, rng);
             foreach (var c in pendentes) c.Minuto = Math.Round(c.Minuto + estado.MinutosJogados, 1);
+            estado.EspacosAjustados = true;
             // Com a duração toda gasta, os espaços sorteados passam do total
             estado.DuracaoMinutos = Math.Max(estado.MinutosJogados + restante, pendentes.Max(c => c.Minuto));
         }
