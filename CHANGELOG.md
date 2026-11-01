@@ -4,6 +4,12 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-11-01
+
+### Alterado
+
+- A rajada de um plano espremido solta no máximo 3 conquistas por vez, e não mais 5 (pedido do usuário: "Coloca no max 3 nas rajadas"). Na simulação do GooCubelets, as rajadas já não passavam de 3, e o plano continua terminando em cerca de 7,2 h a partir de agora.
+
 ## [0.13.0] - 2026-11-01
 
 ### Alterado

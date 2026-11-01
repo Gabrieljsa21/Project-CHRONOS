@@ -328,7 +328,7 @@ namespace Chronos
 
         // Verdadeiro se a Steam gravou. Com atraso (a fila ficou presa numa recusa), as seguintes
         // andam o mesmo tanto, para não saírem em bloco
-        private const int MaximoRajada = 5;
+        private const int MaximoRajada = 3;
         private const double EspacoRajadaMinutos = 2.0;
         private static readonly Random SorteioRajada = new Random();
 
