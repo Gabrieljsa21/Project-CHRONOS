@@ -114,11 +114,11 @@ namespace Chronos
             var voltaram = Conferir(cliente, estado, cfg.Simulacao);
             // Refaz na primeira sessão, nos planos sem as horas da Steam (0.7.0 e anteriores),
             // quando a duracao_horas do config.json muda, quando conquistas voltaram a pendentes e
-            // nos planos da 0.11.1 e anteriores que os espaços de 15 a 30 min esticaram além do total
+            // nos planos feitos com um modelo de tempos anterior (Planejador.VersaoPlano)
             var jogo = cfg.Jogos.FirstOrDefault(j => j.Appid == appid);
             var total = Planejador.DuracaoAtual(estado, jogo, cfg);
-            var esticado = !estado.EspacosAjustados && estado.DuracaoMinutos > total + 1;
-            if (!estado.Sincronizado || estado.MinutosSteam == null || Math.Abs(total - estado.DuracaoTotalMinutos) >= 1 || voltaram || esticado)
+            var antigo = estado.VersaoPlano < Planejador.VersaoPlano;
+            if (!estado.Sincronizado || estado.MinutosSteam == null || Math.Abs(total - estado.DuracaoTotalMinutos) >= 1 || voltaram || antigo)
             {
                 Replanejar(estado, cfg, total, voltaram);
             }

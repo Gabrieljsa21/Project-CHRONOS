@@ -48,6 +48,9 @@ namespace Chronos
         // na mesma proporção até o mínimo chegar a este piso; o máximo fica no dobro. Conquistas
         // marcadas a menos de 2 min uma da outra saem em rajada (Sessao)
         public double IntervaloPisoMinutos { get; set; } = 0.5;
+        // O espaço não passa desta fração do tempo médio por conquista (duração / conquistas):
+        // jogo curto com muitas conquistas tem espaços curtos, jogo longo fica nos 15 a 30 min
+        public double IntervaloFracao { get; set; } = 0.25;
         public List<Janela> Janelas { get; set; } = new List<Janela>();
         public List<JogoConfig> Jogos { get; set; } = new List<JogoConfig>();
 

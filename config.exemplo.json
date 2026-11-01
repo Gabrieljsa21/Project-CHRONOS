@@ -23,7 +23,8 @@
   // Usada quando nenhuma fonte (SteamHunters, HowLongToBeat, curador da Steam) tem o tempo de 100% do jogo
   "duracao_padrao_horas": 50,
 
-  // Quanto a dificuldade pesa na espera: acima de 1, as raras demoram ainda mais que as comuns
+  // A espera até cada conquista segue a diferença de raridade para a anterior (de 90% para 85% é curta,
+  // de 90% para 65% é longa). Acima de 1, o mesmo salto de raridade demora mais entre as raras
   "curva": 1.5,
 
   // Variação aleatória de cada espera (0.15 = mais ou menos 15%)
@@ -37,6 +38,8 @@
   "intervalo_maximo_minutos": 30,
   // Jogo com muitas conquistas para pouca duração: os espaços encolhem até este mínimo (máximo no dobro)
   "intervalo_piso_minutos": 0.5,
+  // O espaço não passa desta fração do tempo médio por conquista (duração dividida pelo número de conquistas)
+  "intervalo_fracao": 0.25,
 
   // Horários em que os jogos ficam abertos. Lista vazia = sempre.
   // dias vazio = todos; códigos: dom, seg, ter, qua, qui, sex, sab. fim antes do início atravessa a meia-noite.

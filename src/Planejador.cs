@@ -49,8 +49,8 @@ namespace Chronos
             // Com alguma fonte fora do ar fica null, e a próxima sessão consulta de novo
             estado.FonteDuracao = completo ? fonte : null;
             estado.DuracaoMinutos = estado.DuracaoTotalMinutos;
-            DistribuirTempos(estado.Conquistas, estado.DuracaoMinutos, cfg, rng);
-            estado.EspacosAjustados = true;
+            DistribuirTempos(estado.Conquistas, estado.DuracaoMinutos, cfg, rng, Pesos(estado.Conquistas, cfg));
+            estado.VersaoPlano = VersaoPlano;
             return estado;
         }
 
@@ -266,15 +266,41 @@ namespace Chronos
             return JsonDocument.Parse(resposta.Content.ReadAsStringAsync().GetAwaiter().GetResult());
         }
 
-        // Quanto mais rara, mais demora: a espera até cada conquista (desde a anterior) é um
-        // espaço sorteado entre intervalo_minimo e intervalo_maximo mais uma parte da duração
-        // proporcional ao peso de dificuldade dela, ln(100 / p)^curva. Os espaços saem da
-        // duração antes da divisão, então o total continua sendo a duração do jogo. Uma de 60%
-        // sai pouco depois do espaço mínimo; uma de 2% leva horas. Para o ritmo não ter padrão, o
-        // espaço é sorteado e a parte de dificuldade tem ruído de ±variacao. A ordem segue a
-        // raridade; `desordem` acima de 0 soma um desvio gaussiano a ela (uma rara pode vir antes
-        // de uma comum e ainda demora o tempo dela).
-        internal static void DistribuirTempos(List<Conquista> conquistas, double duracaoMinutos, Config cfg, Random rng)
+        // Versão do modelo de tempos; plano de versão menor é refeito uma vez na próxima sessão.
+        // 2 (0.14.0): espera pela diferença de raridade e espaço proporcional ao tempo por conquista
+        internal const int VersaoPlano = 2;
+
+        // Cada conquista ocupa a parte da duração que vai da dificuldade da anterior até a dela,
+        // na lista inteira do jogo ordenada da mais comum para a mais rara: G(d) = d^curva, com
+        // d = ln(100 / p). De 90% para 85% o passo é pequeno; de 90% para 65%, bem maior; duas
+        // raras com quase a mesma porcentagem saem perto uma da outra. A conta parte da mais comum
+        // do jogo, e não de 100%: a porcentagem dela mede quem nunca abriu o jogo (no GooCubelets,
+        // a primeira tem 6,7%, e partir de 100% gastava 60% da duração só para chegar nela)
+        internal static Dictionary<Conquista, double> Pesos(IEnumerable<Conquista> todas, Config cfg)
+        {
+            var pesos = new Dictionary<Conquista, double>();
+            var ordenadas = todas.OrderBy(c => Dificuldade(c.Porcentagem)).ToList();
+            if (ordenadas.Count == 0) return pesos;
+            var anterior = Math.Pow(Dificuldade(ordenadas[0].Porcentagem), cfg.Curva);
+            foreach (var c in ordenadas)
+            {
+                var atual = Math.Pow(Dificuldade(c.Porcentagem), cfg.Curva);
+                pesos[c] = Math.Max(0.0, atual - anterior);
+                anterior = Math.Max(anterior, atual);
+            }
+            // Todas com 100%: sem diferença nenhuma, divide por igual
+            if (pesos.Values.Sum() <= 0) foreach (var c in pesos.Keys.ToList()) pesos[c] = 1.0;
+            return pesos;
+        }
+
+        // Cronograma: cada conquista sai, depois da anterior, um espaço sorteado mais a parte da
+        // duração proporcional ao peso dela (Pesos), com ruído de ±variacao. O espaço vem do
+        // config (15 a 30 min, pensado para jogos longos), mas não passa de intervalo_fracao do
+        // tempo médio por conquista (duração / número de conquistas), sem descer do piso: no
+        // Budgie's Bug Shop (19 conquistas em 3,1 h) fica de 1,6 a 3,3 min. Os espaços saem da
+        // duração antes da divisão, então o total continua sendo a duração. A ordem segue a
+        // raridade; `desordem` acima de 0 soma um desvio gaussiano a ela.
+        internal static void DistribuirTempos(List<Conquista> conquistas, double duracaoMinutos, Config cfg, Random rng, Dictionary<Conquista, double> pesosJogo)
         {
             var n = conquistas.Count;
             var dificuldade = conquistas.Select(c => Dificuldade(c.Porcentagem)).ToList();
@@ -283,18 +309,18 @@ namespace Chronos
                 .OrderBy(i => dificuldade[i] + Gaussiano(rng) * cfg.Desordem * amplitude)
                 .ToList();
 
-            var pesos = dificuldade.Select(d => Peso(d, cfg)).ToList();
+            var pesos = conquistas.Select(c => pesosJogo.TryGetValue(c, out var p) ? p : 0.0).ToList();
+            if (pesos.Sum() <= 0) pesos = pesos.Select(_ => 1.0).ToList();
             var minimo = Math.Min(cfg.IntervaloMinimoMinutos, cfg.IntervaloMaximoMinutos);
             var maximo = Math.Max(cfg.IntervaloMinimoMinutos, cfg.IntervaloMaximoMinutos);
-            // Muitas conquistas para pouca duração (GooCubelets: 362 pendentes já fora das 7,3 h do
-            // jogo dariam 136 h só de espaços): o intervalo encolhe para caber, sem passar do piso
             var media = (minimo + maximo) / 2.0;
-            if (n * media > duracaoMinutos && minimo > 0)
+            var alvo = cfg.IntervaloFracao * duracaoMinutos / n;
+            if (alvo < media && minimo > 0)
             {
                 var piso = Math.Max(0.0, Math.Min(cfg.IntervaloPisoMinutos, minimo));
-                var fator = Math.Max(piso / minimo, duracaoMinutos / (n * media));
+                var fator = Math.Max(piso / minimo, alvo / media);
                 minimo *= fator;
-                maximo = Math.Max(maximo * fator, minimo * 2.0);
+                maximo *= fator;
             }
             var espacos = Enumerable.Range(0, n).Select(_ => minimo + rng.NextDouble() * (maximo - minimo)).ToList();
             // Duração curta demais para os espaços: sobra só o espaço sorteado
@@ -319,10 +345,12 @@ namespace Chronos
         internal static void Replanejar(EstadoJogo estado, Config cfg, Random rng, bool fatiaMinima = false)
         {
             var pendentes = estado.Conquistas.Where(c => c.Situacao == Situacao.Pendente).ToList();
+            estado.VersaoPlano = VersaoPlano;
             if (pendentes.Count == 0) return;
             var total = estado.DuracaoTotalMinutos > 0 ? estado.DuracaoTotalMinutos : estado.DuracaoMinutos;
-            var pesoTotal = estado.Conquistas.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
-            var pesoPendente = pendentes.Sum(c => Peso(Dificuldade(c.Porcentagem), cfg));
+            var pesos = Pesos(estado.Conquistas, cfg);
+            var pesoTotal = pesos.Values.Sum();
+            var pesoPendente = pendentes.Sum(c => pesos[c]);
             var fatia = total * pesoPendente / pesoTotal;
             var restante = estado.MinutosJogados > 0
                 ? Math.Max(fatiaMinima ? fatia : 0.0, total - estado.MinutosJogados)
@@ -333,18 +361,14 @@ namespace Chronos
             var mediaEspacos = (cfg.IntervaloMinimoMinutos + cfg.IntervaloMaximoMinutos) / 2.0;
             if (pendentes.Count * mediaEspacos > restante) restante = Math.Max(restante, fatia);
 
-            DistribuirTempos(pendentes, restante, cfg, rng);
+            DistribuirTempos(pendentes, restante, cfg, rng, pesos);
             foreach (var c in pendentes) c.Minuto = Math.Round(c.Minuto + estado.MinutosJogados, 1);
-            estado.EspacosAjustados = true;
             // Com a duração toda gasta, os espaços sorteados passam do total
             estado.DuracaoMinutos = Math.Max(estado.MinutosJogados + restante, pendentes.Max(c => c.Minuto));
         }
 
         private static double Dificuldade(double porcentagem) =>
             Math.Log(100.0 / Math.Min(100.0, Math.Max(0.01, porcentagem)));
-
-        // Peso mínimo para que conquistas de quase 100% não fiquem com espera zero
-        private static double Peso(double dificuldade, Config cfg) => Math.Pow(Math.Max(0.05, dificuldade), cfg.Curva);
 
         // Normal padrão (Box-Muller)
         private static double Gaussiano(Random rng) =>
