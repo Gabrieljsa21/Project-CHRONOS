@@ -84,6 +84,8 @@ namespace Chronos
                 else if (cfg.ManterAberto) ociosos.Add(jogo.Appid);
             }
             ReordenarFila(cfg, estados);
+            // O config.json só é relido no próximo ciclo: as vagas já seguem a ordem nova neste
+            pendentes = pendentes.OrderBy(a => MinutosRestantes(estados[a])).ToList();
 
             // Os jogos com conquistas a liberar têm prioridade nas vagas de jogos_simultaneos
             var desejados = DentroDaJanela(cfg, DateTime.Now)
@@ -150,25 +152,34 @@ namespace Chronos
             }
         }
 
-        // Jogo concluído sobe para o topo da lista, o último concluído primeiro; os outros
-        // mantêm a ordem do usuário, que continua decidindo quem pega as vagas
+        // Jogo concluído sobe para o topo da lista, o último concluído primeiro. Os outros seguem
+        // o que falta para terminar o cronograma, o mais perto do fim primeiro; jogo ainda sem
+        // plano fica no fim. A ordem decide quem pega as vagas de jogos_simultaneos
         private static void ReordenarFila(Config cfg, Dictionary<uint, EstadoJogo> estados)
         {
             bool Concluido(JogoConfig j) => estados.TryGetValue(j.Appid, out var e) && e != null && e.Concluido;
+            double Restante(JogoConfig j) => estados.TryGetValue(j.Appid, out var e) && e != null ? MinutosRestantes(e) : double.MaxValue;
             var ordem = cfg.Jogos.Where(Concluido).OrderByDescending(j => estados[j.Appid].ConcluidoEm ?? DateTime.MinValue)
-                .Concat(cfg.Jogos.Where(j => !Concluido(j))).Select(j => j.Appid).ToList();
+                .Concat(cfg.Jogos.Where(j => !Concluido(j)).OrderBy(Restante)).Select(j => j.Appid).ToList();
             if (ordem.SequenceEqual(cfg.Jogos.Select(j => j.Appid))) return;
 
             try
             {
                 Config.SalvarOrdemJogos(ordem);
-                Log.Escrever("fila reordenada: jogos concluídos no topo");
+                Log.Escrever("fila reordenada: concluídos no topo, depois o mais perto de terminar");
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {
                 // A GAIA pode estar gravando o config.json agora: tenta de novo no próximo ciclo
                 Log.Escrever($"não foi possível reordenar a fila: {e.Message}");
             }
+        }
+
+        // Minutos "jogados" até a última conquista pendente sair; 0 quando não falta nenhuma
+        private static double MinutosRestantes(EstadoJogo estado)
+        {
+            var ultima = estado.Pendentes.LastOrDefault();
+            return ultima == null ? 0 : Math.Max(0, ultima.Minuto - estado.MinutosJogados);
         }
 
         private static EstadoJogo CriarPlano(JogoConfig jogo, Config cfg, Random rng)

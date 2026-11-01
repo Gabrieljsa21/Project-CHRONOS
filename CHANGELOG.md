@@ -4,6 +4,12 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-01
+
+### Alterado
+
+- A fila se ordena pelo que falta para terminar (pedido do usuário: "ordena a fila pelo q esta mais proximo de finalizar primeiro, em cima"). Os concluídos continuam no topo, o último concluído primeiro. Abaixo deles, o jogo cuja última conquista pendente está mais perto vem primeiro, e os jogos ainda sem cronograma ficam no fim. Antes, os não concluídos mantinham a ordem escolhida pelo usuário. Como a ordem decide quem pega as vagas de `jogos_simultaneos`, os jogos perto do fim terminam antes. Na fila atual, o Black Hole Fishing (6 min restantes) vai para cima, e o Idle Wizard (cerca de 2.289 h) vai para o fim.
+
 ## [0.14.0] - 2026-11-01
 
 ### Alterado
