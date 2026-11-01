@@ -28,7 +28,7 @@ dotnet build -c Release                              # gera bin\Release\net48\Ch
 powershell -File scripts\instalar_inicializacao.ps1  # opcional: sobe sozinho no login
 ```
 
-Na primeira execução, o Chronos cria `%APPDATA%\Chronos\config.json` a partir do `config.exemplo.json`. Ajuste a lista de jogos e os horários ali. O arquivo é relido a cada 30 segundos, então não é preciso reiniciar. Quando um jogo termina, o Chronos o move para o topo da lista `jogos` (o último concluído primeiro); os outros mantêm a ordem escolhida.
+Na primeira execução, o Chronos cria `%APPDATA%\Chronos\config.json` a partir do `config.exemplo.json`. Ajuste a lista de jogos e os horários ali. O arquivo é relido a cada 30 segundos, então não é preciso reiniciar. O Chronos ordena a lista `jogos` sozinho: os concluídos ficam no topo (o último concluído primeiro) e, abaixo deles, o jogo mais perto de terminar o cronograma vem primeiro. Jogo ainda sem cronograma fica no fim. Essa ordem decide quem pega as vagas de `jogos_simultaneos`.
 
 O exemplo vem com `"simulacao": true`: a sessão abre na Steam e conta horas, mas só registra no log o que desbloquearia. Troque para `false` quando o plano estiver como você quer.
 
