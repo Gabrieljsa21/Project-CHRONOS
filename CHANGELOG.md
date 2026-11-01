@@ -4,6 +4,12 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-11-01
+
+### Alterado
+
+- A duração total passa a ser sempre a maior das fontes, também quando as três têm o jogo (pedido do usuário: "pode trocar p sempre a maior"). A 0.11.0 usava a mediana das três. No Rise of the Tomb Raider, isso deixava valer o SteamHunters (83,7 h) entre o HowLongToBeat (35,4 h) e o curador (107,5 h); agora valem 107,5 h, e no Portal 2, 35 h em vez de 33,5 h. Os planos que a 0.11.0 já tinha calculado pela mediana são refeitos na próxima sessão.
+
 ## [0.11.0] - 2026-11-01
 
 ### Alterado
