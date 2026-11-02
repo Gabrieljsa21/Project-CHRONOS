@@ -155,12 +155,12 @@ namespace Chronos
                 relogio.Restart();
                 estado.MinutosJogados += delta * acelerar;
 
-                // Uma vez por ciclo, de 1 a 2 min depois da última de qualquer jogo (Vez). Plano
+                // Cada jogo segue o próprio cronograma, sem esperar pelos outros (0.15.1). Plano
                 // espremido (conquistas marcadas a menos de 2 min uma da outra, como no GooCubelets)
-                // solta em rajada as que já venceram, como quem termina uma fase, senão o ritmo da
-                // Vez esticaria o plano; o plano normal (15 a 30 min) solta uma só
+                // solta em rajada as que já venceram, como quem termina uma fase, senão o ciclo de
+                // 1 min esticaria o plano; o plano normal (15 a 30 min) solta uma só
                 var proxima = estado.Pendentes.FirstOrDefault();
-                if (proxima != null && proxima.Minuto <= estado.MinutosJogados && DateTime.Now >= proximaTentativa && Vez.Pegar())
+                if (proxima != null && proxima.Minuto <= estado.MinutosJogados && DateTime.Now >= proximaTentativa)
                 {
                     var espremido = Espremido(estado);
                     var rajada = Rajada(estado);
@@ -332,8 +332,8 @@ namespace Chronos
         private const double EspacoRajadaMinutos = 2.0;
         private static readonly Random SorteioRajada = new Random();
 
-        // Próxima pendente marcada a menos de EspacoRajadaMinutos: o atraso da Vez não empurra o
-        // plano, que alcança o cronograma pelas rajadas
+        // Próxima pendente marcada a menos de EspacoRajadaMinutos: o atraso não empurra o plano,
+        // que alcança o cronograma pelas rajadas
         private static bool Espremido(EstadoJogo estado)
         {
             var duas = estado.Pendentes.Take(2).ToList();
