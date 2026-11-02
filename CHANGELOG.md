@@ -4,6 +4,13 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.15.1] - 2026-11-02
+
+### Corrigido
+
+- Cada jogo segue o próprio cronograma (pedido do usuário: "n precisa compartilhar tempo entre jogos. Cd um tem de seguir o seu"). Saiu a vez compartilhada da 0.9.0, que deixava passar no máximo uma conquista a cada 1 a 2 min somando todos os jogos e entregava a vez a quem pedisse primeiro. Com cerca de 20 sessões abertas, um jogo podia ficar mais de 1 h sem a vez, e o atraso empurrava todas as conquistas seguintes: o Ever Seen A Cat? (73 min pelo plano) passou 77 min parado e foi para cerca de 158 min. O `proximo_desbloqueio.txt` não é mais usado.
+- Os planos são refeitos uma vez na próxima sessão de cada jogo (`versao_plano` 3), para descartar o atraso que a vez acumulou.
+
 ## [0.15.0] - 2026-11-01
 
 ### Alterado

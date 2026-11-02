@@ -268,7 +268,8 @@ namespace Chronos
 
         // Versão do modelo de tempos; plano de versão menor é refeito uma vez na próxima sessão.
         // 2 (0.14.0): espera pela diferença de raridade e espaço proporcional ao tempo por conquista
-        internal const int VersaoPlano = 2;
+        // 3 (0.15.1): refaz os planos esticados pela vez compartilhada, que saiu
+        internal const int VersaoPlano = 3;
 
         // Cada conquista ocupa a parte da duração que vai da dificuldade da anterior até a dela,
         // na lista inteira do jogo ordenada da mais comum para a mais rara: G(d) = d^curva, com
