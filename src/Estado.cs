@@ -104,24 +104,9 @@ namespace Chronos
 
         public void Salvar()
         {
-            var caminho = Caminho(Appid);
-            var temporario = caminho + ".tmp";
-            File.WriteAllText(temporario, JsonSerializer.Serialize(this, Config.Json), new UTF8Encoding(false));
-            // Troca atômica: uma sessão encerrada no meio da gravação nunca deixa o arquivo pela metade.
-            // A troca falha enquanto a GAIA ou o agendador leem o arquivo
-            for (var tentativa = 0; ; tentativa++)
-            {
-                try
-                {
-                    if (File.Exists(caminho)) File.Replace(temporario, caminho, null);
-                    else File.Move(temporario, caminho);
-                    return;
-                }
-                catch (IOException) when (tentativa < 10)
-                {
-                    Thread.Sleep(200);
-                }
-            }
+            // Troca atômica com escrita forçada no disco: nem uma sessão encerrada no meio nem uma
+            // queda de energia deixam o progresso do jogo pela metade ou zerado
+            Arquivo.GravarAtomico(Caminho(Appid), JsonSerializer.Serialize(this, Config.Json));
         }
     }
 }
