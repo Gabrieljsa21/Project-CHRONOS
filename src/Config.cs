@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -77,7 +78,65 @@ namespace Chronos
                 }
                 Log.Escrever($"config.json criado em {Caminhos.Config}");
             }
-            return JsonSerializer.Deserialize<Config>(File.ReadAllText(Caminhos.Config), Json) ?? new Config();
+            var texto = File.ReadAllText(Caminhos.Config);
+            Config cfg;
+            try
+            {
+                cfg = Interpretar(texto);
+            }
+            catch (JsonException e)
+            {
+                return Restaurar(e);
+            }
+            GuardarCopia(texto);
+            return cfg;
+        }
+
+        private static Config Interpretar(string texto) =>
+            JsonSerializer.Deserialize<Config>(texto, Json) ?? throw new JsonException("config.json vazio");
+
+        // Cópia do último config.json bom, regravada só quando ele muda. Todo processo do
+        // CHRONOS chega aqui (agendador a cada ciclo, cada sessão ao abrir): dois podem
+        // gravar ao mesmo tempo, por isso o temporário é por processo e a falha é ignorada
+        private static void GuardarCopia(string texto)
+        {
+            try
+            {
+                if (File.Exists(Caminhos.ConfigCopia) && File.ReadAllText(Caminhos.ConfigCopia) == texto) return;
+                Arquivo.GravarAtomico(Caminhos.ConfigCopia, texto, $"{Caminhos.ConfigCopia}.{Process.GetCurrentProcess().Id}.tmp");
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+            }
+        }
+
+        // config.json corrompido (06/11/2026: uma queda de energia deixou o arquivo cheio de
+        // 0x00 e o CHRONOS recusou subir até alguém refazer a lista de jogos à mão): volta para
+        // a cópia e guarda o arquivo estragado ao lado, para conferência
+        private static Config Restaurar(JsonException erro)
+        {
+            if (!File.Exists(Caminhos.ConfigCopia)) throw erro;
+            var texto = File.ReadAllText(Caminhos.ConfigCopia);
+            Config cfg;
+            try
+            {
+                cfg = Interpretar(texto);
+            }
+            catch (JsonException)
+            {
+                throw new JsonException($"{erro.Message} (a cópia config.json.bak também está inválida)", erro);
+            }
+            try
+            {
+                File.Copy(Caminhos.Config, $"{Caminhos.Config}.corrompido-{DateTime.Now:yyyyMMdd-HHmmss}", false);
+                Arquivo.GravarAtomico(Caminhos.Config, texto, $"{Caminhos.Config}.{Process.GetCurrentProcess().Id}.tmp");
+                Log.Escrever($"config.json corrompido ({erro.Message}); restaurado da cópia de {File.GetLastWriteTime(Caminhos.ConfigCopia):dd/MM HH:mm}");
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+            {
+                // Outro processo do CHRONOS restaurou no mesmo instante; a cópia já serve
+            }
+            return cfg;
         }
 
         // Regrava só a ordem de "jogos", com o resto do arquivo como está (a GAIA também grava
@@ -97,13 +156,11 @@ namespace Chronos
                 jogos.Add(item);
             }
 
-            var temporario = Caminhos.Config + ".tmp";
-            File.WriteAllText(temporario, raiz.ToJsonString(new JsonSerializerOptions
+            Arquivo.GravarAtomico(Caminhos.Config, raiz.ToJsonString(new JsonSerializerOptions
             {
                 WriteIndented = true,
                 Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            }), new UTF8Encoding(false));
-            File.Replace(temporario, Caminhos.Config, null);
+            }));
         }
     }
 
@@ -113,6 +170,8 @@ namespace Chronos
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Chronos");
 
         public static string Config => Path.Combine(Dados, "config.json");
+        // Última versão do config.json que abriu sem erro (Config.Carregar)
+        public static string ConfigCopia => Path.Combine(Dados, "config.json.bak");
         public static string Log => Path.Combine(Dados, "chronos.log");
         public static string Estados => Path.Combine(Dados, "estado");
 

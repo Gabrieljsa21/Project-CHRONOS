@@ -19,12 +19,9 @@ namespace Chronos
                 ["atualizado_em"] = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
                 ["problemas"] = problemas,
             }, Config.Json);
-            var temporario = Caminho + ".tmp";
             try
             {
-                File.WriteAllText(temporario, conteudo, new UTF8Encoding(false));
-                if (File.Exists(Caminho)) File.Replace(temporario, Caminho, null);
-                else File.Move(temporario, Caminho);
+                Arquivo.GravarAtomico(Caminho, conteudo);
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {

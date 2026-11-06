@@ -4,6 +4,13 @@ Este arquivo registra as mudanças importantes do projeto. O formato segue o [Ke
 
 ## [Unreleased]
 
+## [0.15.2] - 2026-11-06
+
+### Corrigido
+
+- O `config.json` sobrevive a queda de energia. Em 06/11, o PC desligou sem aviso às 00:57 e o arquivo ficou cheio de 0x00: o agendador recusou subir ("'0x00' is an invalid start of a value") até a lista de jogos ser refeita à mão. Agora o CHRONOS guarda a última versão boa em `config.json.bak` (regravada só quando o arquivo muda) e, se o `config.json` não abrir, volta para a cópia sozinho, guarda o arquivo estragado como `config.json.corrompido-<data>` e registra no log. Sem cópia boa, continua saindo com o código 5 e o erro no log.
+- `config.json`, `estado/<appid>.json` e `saude.json` passam a ser gravados com escrita forçada no disco antes da troca atômica (`Arquivo.GravarAtomico`). Sem isso, a troca podia chegar ao disco antes do conteúdo, que é o que zerou o `config.json`.
+
 ## [0.15.1] - 2026-11-02
 
 ### Corrigido
